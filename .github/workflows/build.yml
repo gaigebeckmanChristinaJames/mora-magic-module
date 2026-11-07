@@ -17,7 +17,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK manually
+      - name: Setup Android SDK
         run: |
           mkdir -p $HOME/android-sdk/cmdline-tools
           cd $HOME/android-sdk/cmdline-tools
@@ -26,36 +26,34 @@ jobs:
           mv cmdline-tools latest
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
 
       - name: Install SDK packages
         run: |
           yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
       - name: Download Xposed API
         run: |
           mkdir -p xposed
-          wget -q -O xposed/api-82.jar "https://bitbucket.org/weishu/android-hidden-api/raw/master/api-82.jar" || \
-          wget -q -O xposed/api-82.jar "https://github.com/rovo89/XposedBridge/raw/art/app/api-82.jar" || \
-          echo "Download failed, will create empty jar"
+          wget -q -O xposed/api-82.jar "https://repo1.maven.org/maven2/de/robv/android/xposed/api/82/api-82.jar"
+          ls -la xposed/
 
       - name: Compile Java sources
         run: |
           mkdir -p obj
-          javac -source 8 -target 8 \
-            -bootclasspath $ANDROID_HOME/platforms/android-35/android.jar \
+          javac \
+            -bootclasspath $ANDROID_HOME/platforms/android-34/android.jar \
             -cp xposed/api-82.jar \
             -d obj \
-            $(find app/src/main/java -name "*.java")
+            app/src/main/java/com/mora/magicmodule/MoraHooker.java
 
       - name: Convert to DEX
         run: |
           mkdir -p build
-          $ANDROID_HOME/build-tools/35.0.0/d8 \
+          $ANDROID_HOME/build-tools/34.0.0/d8 \
             --release \
             --min-api 26 \
-            --lib $ANDROID_HOME/platforms/android-35/android.jar \
+            --lib $ANDROID_HOME/platforms/android-34/android.jar \
             --output build \
             $(find obj -name "*.class")
 
@@ -63,46 +61,40 @@ jobs:
         run: |
           mkdir -p build
 
-          # Link resources
-          $ANDROID_HOME/build-tools/35.0.0/aapt2 link \
+          $ANDROID_HOME/build-tools/34.0.0/aapt2 link \
             -o build/unsigned.apk \
-            -I $ANDROID_HOME/platforms/android-35/android.jar \
+            -I $ANDROID_HOME/platforms/android-34/android.jar \
             --manifest app/src/main/AndroidManifest.xml \
             --min-sdk-version 26 \
-            --target-sdk-version 35 \
-            --version-code 79 \
-            --version-name "7.9.0"
+            --target-sdk-version 34 \
+            --version-code 80 \
+            --version-name "8.0.0"
 
-          # Add classes.dex
           cd build
           zip -q unsigned.apk classes.dex
           cd ..
 
-          # Add xposed_init
           cd app/src/main
           zip -q ../../../build/unsigned.apk assets/xposed_init
           cd ../../..
 
-          # Zipalign
-          $ANDROID_HOME/build-tools/35.0.0/zipalign -f 4 build/unsigned.apk build/aligned.apk
+          $ANDROID_HOME/build-tools/34.0.0/zipalign -f 4 build/unsigned.apk build/aligned.apk
 
-          # Generate keystore
           keytool -genkey -v -keystore build/mora.jks \
             -alias mora -keyalg RSA -keysize 2048 \
             -validity 10000 \
             -storepass android -keypass android \
             -dname "CN=Mora, OU=Dev, O=Mora, L=Beijing, ST=Beijing, C=CN"
 
-          # Sign
-          $ANDROID_HOME/build-tools/35.0.0/apksigner sign \
+          $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
             --ks build/mora.jks \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out build/魔姬增强模块_v7.9.apk \
+            --out build/魔姬增强模块_v8.0.apk \
             build/aligned.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 魔姬增强模块_v7.9
-          path: build/魔姬增强模块_v7.9.apk
+          name: 魔姬增强模块_v8.0
+          path: build/魔姬增强模块_v8.0.apk
