@@ -500,7 +500,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
             conn.setRequestProperty("Authorization", lastApiKey);
             conn.setDoOutput(true);
             
-            String requestBody = "{"fileName":"" + file.getName() + "","filePath":"tempfiles/"}";
+            String requestBody = "{\"fileName\":\"" + file.getName() + "\",\"filePath\":\"tempfiles/\"}";
             addLog("请求体: " + requestBody);
             conn.getOutputStream().write(requestBody.getBytes("UTF-8"));
             
