@@ -32,24 +32,6 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Download jadx
-        run: |
-          wget -q https://github.com/skylot/jadx/releases/download/v1.5.0/jadx-1.5.0.zip -O /tmp/jadx.zip
-          unzip -q /tmp/jadx.zip -d /tmp/jadx
-
-      - name: Decompile prebuilt dex
-        run: |
-          mkdir -p build/decompiled
-          /tmp/jadx/bin/jadx -d build/decompiled app/src/main/dex/classes.dex --no-res
-          ls build/decompiled/sources/com/mora/magicmodule/
-
-      - name: Fix decompiled code
-        run: |
-          # 修复 final 变量错误
-          sed -i "s/for (final int i/for (int i/g" build/decompiled/sources/com/mora/magicmodule/*.java
-          # 修复 lambda 引用循环变量的错误（用数组包装）
-          sed -i "s/MoraHooker.lambda\$6(i,/MoraHooker.lambda\$6(new int[]{i}[0],/g" build/decompiled/sources/com/mora/magicmodule/*.java
-
       - name: Compile Xposed stub
         run: |
           mkdir -p build/stub_classes
@@ -62,25 +44,31 @@ jobs:
           mkdir -p build/res_compiled
           $ANDROID_HOME/build-tools/34.0.0/aapt2 compile app/src/main/res/values/arrays.xml -o build/res_compiled/
 
-      - name: Compile decompiled Java sources
+      - name: Copy prebuilt classes.dex (original, works)
         run: |
-          mkdir -p build/obj
+          mkdir -p build
+          cp app/src/main/dex/classes.dex build/classes.dex
+          echo "Using prebuilt classes.dex: $(wc -c < build/classes.dex) bytes"
+
+      - name: Compile FileUploadHelper to classes2.dex
+        run: |
+          mkdir -p build/obj2
           javac -source 8 -target 8 \
             -cp build/stub_classes:$ANDROID_HOME/platforms/android-34/android.jar \
-            -d build/obj \
-            build/decompiled/sources/com/mora/magicmodule/*.java || echo "Compilation failed, using prebuilt dex instead"
-
-      - name: Dex (if compilation succeeded)
-        run: |
-          if [ -f build/obj/com/mora/magicmodule/MoraHooker.class ]; then
+            -d build/obj2 \
+            app/src/main/java/com/mora/magicmodule/FileUploadHelper.java || echo "FileUploadHelper compilation failed"
+          
+          if [ -f build/obj2/com/mora/magicmodule/FileUploadHelper.class ]; then
             $ANDROID_HOME/build-tools/34.0.0/d8 \
               --release \
               --min-api 26 \
               --lib $ANDROID_HOME/platforms/android-34/android.jar \
               --output build \
-              $(find build/obj -name "*.class")
+              $(find build/obj2 -name "*.class")
+            mv build/classes.dex build/classes2.dex
+            echo "Created classes2.dex: $(wc -c < build/classes2.dex) bytes"
           else
-            cp app/src/main/dex/classes.dex build/classes.dex
+            echo "FileUploadHelper not compiled, no classes2.dex"
           fi
 
       - name: Build APK
@@ -94,12 +82,16 @@ jobs:
             --auto-add-overlay \
             --min-sdk-version 26 \
             --target-sdk-version 34 \
-            --version-code 121 \
-            --version-name "12.1.0"
+            --version-code 123 \
+            --version-name "12.3.0"
 
-          # Add classes.dex
+          # Add dex files
           cd build
           zip -q -j unsigned.apk classes.dex
+          if [ -f classes2.dex ]; then
+            zip -q -j unsigned.apk classes2.dex
+            echo "Added classes2.dex"
+          fi
 
           # Add assets
           mkdir -p assets
@@ -122,11 +114,11 @@ jobs:
             --ks build/mora.jks \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out build/魔姬增强模块_v12.1.apk \
+            --out build/mora-magic-v12.3.apk \
             build/aligned.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 魔姬增强模块_v12.1
-          path: build/魔姬增强模块_v12.1.apk
+          name: mora-magic-v12.3
+          path: build/mora-magic-v12.3.apk
