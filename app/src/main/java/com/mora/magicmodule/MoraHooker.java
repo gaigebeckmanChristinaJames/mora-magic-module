@@ -23,6 +23,8 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,6 +32,10 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
 
+/**
+ * 魔姬助手增强模块 v7.0
+ * 三级菜单结构
+ */
 public class MoraHooker implements IXposedHookLoadPackage {
 
     private static final String TAG = "MoraModule";
@@ -39,18 +45,20 @@ public class MoraHooker implements IXposedHookLoadPackage {
     private static final ArrayList<String> logs = new ArrayList<>();
     private static final int MAX_LOGS = 200;
 
+    // 设置
     private static boolean rewriteEnabled = true;
-    private static ArrayList<String> customFragments = new ArrayList<>();
+    private static ArrayList<String> customFragments = new ArrayList<>(); // "名字:内容"
     private static String messageTemplate = "{msg}";
-    private static int logLevel = 2;
+    private static int logLevel = 2; // 0=错误 1=警告 2=信息 3=调试
 
+    // 从请求里提取的 API 信息
     private static String lastChatUrl = "";
     private static String lastApiKey = "";
     private static String lastBotId = "";
     private static String lastUserId = "";
 
     private static void addLog(String msg) {
-        addLog(2, msg);
+        addLog(2, msg); // 默认信息级
     }
 
     private static void addLog(int level, String msg) {
@@ -66,7 +74,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
         if (!TARGET_PACKAGE.equals(lpparam.packageName)) return;
-        addLog("=== v7.9 模块加载 ===");
+        addLog("=== v7.0 模块加载 ===");
         hookPopupWindow();
         hookOkHttp(lpparam);
     }
@@ -151,36 +159,13 @@ public class MoraHooker implements IXposedHookLoadPackage {
                         addLog(3, "网络请求: " + url);
                         lastChatUrl = url;
 
+                        // 提取 header 里的 token
                         Object headers = XposedHelpers.callMethod(req, "headers");
                         if (headers != null) {
                             try {
                                 Object auth = XposedHelpers.callMethod(headers, "get", "Authorization");
                                 if (auth != null) lastApiKey = auth.toString();
                             } catch (Exception e) {}
-                        }
-
-                        if (url.contains("presignedurl")) {
-                            addLog(3, "=== 文件上传接口 ===");
-                            addLog(3, "URL: " + url);
-                            addLog(3, "Method: " + XposedHelpers.callMethod(req, "method"));
-                            try {
-                                int headerCount = (int) XposedHelpers.callMethod(headers, "size");
-                                for (int i = 0; i < headerCount; i++) {
-                                    String name = (String) XposedHelpers.callMethod(headers, "name", i);
-                                    String value = (String) XposedHelpers.callMethod(headers, "value", i);
-                                    addLog(3, "Header: " + name + ": " + value);
-                                }
-                            } catch (Exception e) {}
-
-                            Object body = XposedHelpers.callMethod(req, "body");
-                            if (body != null) {
-                                Class<?> bufCls = XposedHelpers.findClass("okio.Buffer", lpparam.classLoader);
-                                Object buf = bufCls.newInstance();
-                                XposedHelpers.callMethod(body, "writeTo", buf);
-                                String bodyStr = (String) XposedHelpers.callMethod(buf, "readUtf8");
-                                addLog(3, "请求体: " + bodyStr);
-                            }
-                            addLog(3, "=== 文件上传接口结束 ===");
                         }
 
                         if (!url.contains("/chat")) return;
@@ -194,6 +179,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
                         String orig = (String) XposedHelpers.callMethod(buf, "readUtf8");
                         addLog(3, "原始请求体: " + orig.substring(0, Math.min(200, orig.length())) + "...");
 
+                        // 提取 botId、userId
                         extractApiInfo(orig);
 
                         String modified = doRewrite(orig);
@@ -259,6 +245,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
     }
 
     private void extractApiInfo(String body) {
+        // 简单提取几个字段
         lastBotId = extractJsonField(body, "bot_id");
         lastUserId = extractJsonField(body, "user_id");
         addLog(3, "提取API信息: bot=" + lastBotId + " user=" + lastUserId);
@@ -274,6 +261,9 @@ public class MoraHooker implements IXposedHookLoadPackage {
         return json.substring(start, end);
     }
 
+    // ========== 三级菜单 ==========
+
+    /** 第一层: 主菜单 */
     private void showMainDialog(Context ctx) {
         LinearLayout layout = new LinearLayout(ctx);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -303,6 +293,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
         new AlertDialog.Builder(ctx).setView(layout).setPositiveButton("关闭", null).show();
     }
 
+    /** 第一层: 文件附件 */
     private void showFileDialog(Context ctx) {
         LinearLayout layout = new LinearLayout(ctx);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -315,7 +306,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
         layout.addView(title);
 
         TextView hint = new TextView(ctx);
-        hint.setText("（开发中）");
+        hint.setText("（开发中，后面支持按原生格式发送文件附件）");
         hint.setTextSize(14);
         hint.setPadding(0, 0, 0, 30);
         layout.addView(hint);
@@ -332,6 +323,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
         new AlertDialog.Builder(ctx).setView(layout).setPositiveButton("返回", null).show();
     }
 
+    /** 第一层: 设置（日志、状态） */
     private void showSettingsDialog2(Context ctx) {
         LinearLayout layout = new LinearLayout(ctx);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -343,9 +335,10 @@ public class MoraHooker implements IXposedHookLoadPackage {
         title.setPadding(0, 0, 0, 30);
         layout.addView(title);
 
+        // 状态信息
         TextView status = new TextView(ctx);
         status.setText("模块状态:\n" +
-            "  版本: v7.9\n" +
+            "  版本: v7.3\n" +
             "  消息改写: " + (rewriteEnabled ? "开启" : "关闭") + "\n" +
             "  自定义片段: " + customFragments.size() + " 个\n" +
             "  日志条数: " + logs.size() + " 条\n\n" +
@@ -359,6 +352,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
         status.setBackgroundColor(0xFFEEEEEE);
         layout.addView(status);
 
+        // 日志等级
         TextView lLabel = new TextView(ctx);
         lLabel.setText("日志等级:");
         lLabel.setTextSize(14);
@@ -391,6 +385,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
         btnClearLog.setOnClickListener(v -> logs.clear());
         layout.addView(btnClearLog);
 
+        // 复制 API 信息
         Button btnCopyApi = new Button(ctx);
         btnCopyApi.setText("复制 API 信息");
         btnCopyApi.setOnClickListener(v -> {
@@ -407,6 +402,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
         new AlertDialog.Builder(ctx).setView(layout).setPositiveButton("返回", null).show();
     }
 
+    /** 第二层: 消息格式 */
     private void showFormatDialog(Context ctx) {
         LinearLayout layout = new LinearLayout(ctx);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -491,7 +487,9 @@ public class MoraHooker implements IXposedHookLoadPackage {
 
         Button btnClear = new Button(ctx);
         btnClear.setText("清空");
-        btnClear.setOnClickListener(v -> etTpl.setText(""));
+        btnClear.setOnClickListener(v -> {
+            etTpl.setText("");
+        });
         rowOps.addView(btnClear, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         Button btnAdd = new Button(ctx);
@@ -520,6 +518,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
         new AlertDialog.Builder(ctx).setView(sv).setNegativeButton("返回", null).show();
     }
 
+    /** 第三层: 管理片段列表 */
     private void showManageFragmentsDialog(Context ctx) {
         LinearLayout layout = new LinearLayout(ctx);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -569,6 +568,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
         new AlertDialog.Builder(ctx).setView(sv).setNegativeButton("返回", null).show();
     }
 
+    /** 第三层: 编辑/新建片段 */
     private void showEditFragmentDialog(Context ctx, int editIdx) {
         LinearLayout layout = new LinearLayout(ctx);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -625,6 +625,11 @@ public class MoraHooker implements IXposedHookLoadPackage {
             .show();
     }
 
+    /** 文件浏览器 */
+    private void showFilePicker(Context ctx, final OnFilePicked callback) {
+        showFilePicker(ctx, new File("/sdcard"), callback);
+    }
+
     private void showFilePicker(Context ctx, File dir, final OnFilePicked callback) {
         try {
             if (!dir.exists()) dir = new File("/sdcard");
@@ -634,6 +639,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
             final ArrayList<File> list = new ArrayList<>();
             if (files != null) {
                 list.addAll(Arrays.asList(files));
+                // 文件夹在前，文件在后
                 Collections.sort(list, (a, b) -> {
                     if (a.isDirectory() && !b.isDirectory()) return -1;
                     if (!a.isDirectory() && b.isDirectory()) return 1;
@@ -644,12 +650,14 @@ public class MoraHooker implements IXposedHookLoadPackage {
             LinearLayout layout = new LinearLayout(ctx);
             layout.setOrientation(LinearLayout.VERTICAL);
 
+            // 当前路径
             TextView pathView = new TextView(ctx);
             pathView.setText("当前: " + dir.getAbsolutePath());
             pathView.setTextSize(12);
             pathView.setPadding(20, 10, 20, 10);
             layout.addView(pathView);
 
+            // 返回上一级
             final File parentDir = dir.getParentFile();
             if (parentDir != null) {
                 Button btnUp = new Button(ctx);
@@ -658,6 +666,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
                 layout.addView(btnUp);
             }
 
+            // 文件列表
             ListView lv = new ListView(ctx);
             ArrayList<String> names = new ArrayList<>();
             for (File f : list) {
@@ -666,7 +675,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
             ArrayAdapter<String> adapter = new ArrayAdapter<>(ctx, android.R.layout.simple_list_item_1, names);
             lv.setAdapter(adapter);
             layout.addView(lv, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 800));
+                ViewGroup.LayoutParams.MATCH_PARENT, 800)); // 固定高度，做大一点
 
             lv.setOnItemClickListener((parent, view, position, id) -> {
                 File selected = list.get(position);
