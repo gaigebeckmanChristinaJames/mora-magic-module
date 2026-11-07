@@ -2,107 +2,147 @@ package com.mora.magicmodule;
 
 import android.app.Activity;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+
 public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(48, 48, 48, 48);
-        layout.setBackgroundColor(Color.parseColor("#F5F5F5"));
+        LinearLayout rootLayout = new LinearLayout(this);
+        rootLayout.setOrientation(LinearLayout.VERTICAL);
+        rootLayout.setBackgroundColor(Color.parseColor("#F5F7FA"));
+        
+        // === 顶部状态区域 ===
+        LinearLayout statusLayout = new LinearLayout(this);
+        statusLayout.setOrientation(LinearLayout.VERTICAL);
+        statusLayout.setPadding(48, 56, 48, 32);
+        statusLayout.setBackgroundColor(Color.parseColor("#6750A4"));
         
         // 标题
         TextView title = new TextView(this);
         title.setText("魔姬增强模块");
-        title.setTextSize(24);
+        title.setTextSize(22);
         title.getPaint().setFakeBoldText(true);
-        title.setTextColor(Color.parseColor("#1A1A1A"));
-        title.setPadding(0, 0, 0, 24);
-        layout.addView(title);
+        title.setTextColor(Color.WHITE);
+        title.setPadding(0, 0, 0, 8);
+        statusLayout.addView(title);
         
         // 版本信息
         TextView version = new TextView(this);
-        version.setText("版本: v11.2 | 目标: com.zte.aiassistant");
+        version.setText("v11.2.2 | com.zte.aiassistant");
         version.setTextSize(13);
-        version.setTextColor(Color.parseColor("#888888"));
-        version.setPadding(0, 0, 0, 24);
-        layout.addView(version);
+        version.setTextColor(Color.parseColor("#EADDFF"));
+        statusLayout.addView(version);
         
-        // Hook 点状态
+        rootLayout.addView(statusLayout);
+        
+        // === Hook 状态卡片 ===
+        LinearLayout hookCard = new LinearLayout(this);
+        hookCard.setOrientation(LinearLayout.VERTICAL);
+        hookCard.setPadding(32, 28, 32, 28);
+        hookCard.setBackgroundColor(Color.WHITE);
+        hookCard.setElevation(2);
+        LinearLayout.LayoutParams hookParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        hookParams.setMargins(32, 32, 32, 16);
+        hookCard.setLayoutParams(hookParams);
+        
         TextView hookTitle = new TextView(this);
-        hookTitle.setText("=== Hook 点状态 ===");
-        hookTitle.setTextSize(16);
+        hookTitle.setText("Hook 状态");
+        hookTitle.setTextSize(15);
         hookTitle.getPaint().setFakeBoldText(true);
-        hookTitle.setTextColor(Color.parseColor("#1A1A1A"));
+        hookTitle.setTextColor(Color.parseColor("#1D1B20"));
         hookTitle.setPadding(0, 0, 0, 12);
-        layout.addView(hookTitle);
+        hookCard.addView(hookTitle);
         
-        TextView hooks = new TextView(this);
-        hooks.setTextSize(14);
-        hooks.setTextColor(Color.parseColor("#333333"));
-        hooks.setPadding(32, 24, 32, 24);
-        hooks.setBackgroundColor(Color.WHITE);
+        TextView hookContent = new TextView(this);
+        hookContent.setTextSize(13);
+        hookContent.setTextColor(Color.parseColor("#49454F"));
         
-        StringBuilder sb = new StringBuilder();
-        sb.append("✓ PopupWindow Hook\n");
-        sb.append("  - 作用: 注入三点菜单入口\n");
-        sb.append("  - 状态: 已安装\n\n");
+        StringBuilder hookSb = new StringBuilder();
+        hookSb.append("✓ PopupWindow Hook - 菜单注入\n");
+        hookSb.append("✓ OkHttp Hook - 网络拦截\n");
+        hookSb.append("✓ 消息改写 - chat 接口\n");
         
-        sb.append("✓ OkHttp Hook\n");
-        sb.append("  - 作用: 拦截网络请求\n");
-        sb.append("  - 状态: 已安装\n");
-        sb.append("  - 拦截接口:\n");
-        sb.append("    • /aimoe/service/api/v1/chat\n");
-        sb.append("    • /aigcapi/oss/file/presignedurl\n");
-        sb.append("    • /aigcapi/oss/config\n\n");
+        hookContent.setText(hookSb.toString());
+        hookCard.addView(hookContent);
         
-        sb.append("=== 功能列表 ===\n");
-        sb.append("• 菜单注入: 三点菜单加入口\n");
-        sb.append("• 消息改写: 修改聊天请求\n");
-        sb.append("• 文件附件: OSS 上传\n");
-        sb.append("• 调试日志: 记录所有请求\n");
+        rootLayout.addView(hookCard);
         
-        hooks.setText(sb.toString());
-        layout.addView(hooks);
+        // === 日志区域 ===
+        TextView logTitle = new TextView(this);
+        logTitle.setText("运行日志");
+        logTitle.setTextSize(15);
+        logTitle.getPaint().setFakeBoldText(true);
+        logTitle.setTextColor(Color.parseColor("#1D1B20"));
+        LinearLayout.LayoutParams logTitleParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        logTitleParams.setMargins(32, 16, 32, 8);
+        logTitle.setLayoutParams(logTitleParams);
+        rootLayout.addView(logTitle);
         
-        // 使用说明
-        TextView usageTitle = new TextView(this);
-        usageTitle.setText("=== 使用说明 ===");
-        usageTitle.setTextSize(16);
-        usageTitle.getPaint().setFakeBoldText(true);
-        usageTitle.setTextColor(Color.parseColor("#1A1A1A"));
-        usageTitle.setPadding(0, 24, 0, 12);
-        layout.addView(usageTitle);
+        // 日志内容卡片
+        LinearLayout logCard = new LinearLayout(this);
+        logCard.setOrientation(LinearLayout.VERTICAL);
+        logCard.setPadding(24, 24, 24, 24);
+        logCard.setBackgroundColor(Color.parseColor("#1E1E1E"));
+        LinearLayout.LayoutParams logCardParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        logCardParams.setMargins(32, 0, 32, 32);
+        logCard.setLayoutParams(logCardParams);
         
-        TextView usage = new TextView(this);
-        usage.setTextSize(14);
-        usage.setTextColor(Color.parseColor("#333333"));
-        usage.setPadding(32, 24, 32, 24);
-        usage.setBackgroundColor(Color.WHITE);
-        usage.setMovementMethod(new ScrollingMovementMethod());
+        TextView logView = new TextView(this);
+        logView.setTextSize(12);
+        logView.setTextColor(Color.parseColor("#A5D6A7"));
+        logView.setTypeface(Typeface.MONOSPACE);
+        logView.setMovementMethod(new ScrollingMovementMethod());
         
-        StringBuilder usageSb = new StringBuilder();
-        usageSb.append("1. 打开魔姬助手\n");
-        usageSb.append("2. 点击右上角三点菜单\n");
-        usageSb.append("3. 点击「魔姬增强设置」\n");
-        usageSb.append("4. 查看详细日志\n\n");
-        usageSb.append("日志内容包括:\n");
-        usageSb.append("• 所有网络请求 URL\n");
-        usageSb.append("• 请求体和响应\n");
-        usageSb.append("• Hook 触发记录\n");
+        // 读取日志文件
+        StringBuilder logSb = new StringBuilder();
+        try {
+            File logFile = new File(android.os.Environment.getExternalStorageDirectory(), 
+                "Android/data/com.mora.magicmodule/files/logs.txt");
+            if (logFile.exists()) {
+                BufferedReader reader = new BufferedReader(new FileReader(logFile));
+                String line;
+                int count = 0;
+                while ((line = reader.readLine()) != null && count < 200) {
+                    logSb.append(line).append("\n");
+                    count++;
+                }
+                reader.close();
+            } else {
+                logSb.append("// 暂无日志\n");
+                logSb.append("// 打开魔姬助手触发操作后刷新查看\n");
+            }
+        } catch (Exception e) {
+            logSb.append("// 读取日志失败: " + e.getMessage());
+        }
         
-        usage.setText(usageSb.toString());
-        layout.addView(usage);
+        logView.setText(logSb.toString());
+        logCard.addView(logView);
+        
+        rootLayout.addView(logCard);
         
         ScrollView scrollView = new ScrollView(this);
-        scrollView.addView(layout);
+        scrollView.addView(rootLayout);
         setContentView(scrollView);
     }
 }
