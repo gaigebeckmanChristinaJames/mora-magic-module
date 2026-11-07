@@ -52,6 +52,7 @@ jobs:
         run: |
           mkdir -p obj
           javac \
+            -source 8 -target 8 \
             -bootclasspath $ANDROID_HOME/platforms/android-34/android.jar \
             -cp xposed-stub.jar \
             -d obj \
