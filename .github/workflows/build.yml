@@ -55,6 +55,10 @@ jobs:
           mkdir -p build/res_compiled
           $ANDROID_HOME/build-tools/34.0.0/aapt2 compile app/src/main/res/values/arrays.xml -o build/res_compiled/
 
+      - name: Fix decompiled code
+        run: |
+          sed -i "s/for (final int i/for (int i/g" build/decompiled/sources/com/mora/magicmodule/*.java
+
       - name: Compile decompiled Java sources
         run: |
           mkdir -p build/obj
