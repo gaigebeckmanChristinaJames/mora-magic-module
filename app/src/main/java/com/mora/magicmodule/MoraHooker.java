@@ -485,8 +485,8 @@ public class MoraHooker implements IXposedHookLoadPackage {
                 conn.setRequestProperty("Authorization", lastApiKey);
                 conn.setDoOutput(true);
                 
-                // TODO: 这里需要补全 presignedurl 的请求参数
-                String requestBody = "{\"fileName\":\"" + file.getName() + "\"}";
+                // 根据 OSS 路径格式 /tempfiles/1249941/文件名 推断请求参数
+                String requestBody = "{\"fileName\":\"" + file.getName() + "\",\"filePath\":\"tempfiles/\"}";
                 conn.getOutputStream().write(requestBody.getBytes("UTF-8"));
                 
                 int responseCode = conn.getResponseCode();
@@ -500,17 +500,52 @@ public class MoraHooker implements IXposedHookLoadPackage {
                         response.append(line);
                     }
                     reader.close();
-                    addLog("presignedurl 响应: " + response.toString());
+                    String respStr = response.toString();
+                    addLog("presignedurl 响应: " + respStr);
                     
-                    // TODO: 解析响应，获取上传 URL 和 OSS URL
-                    // TODO: PUT 上传文件到 OSS
-                    // TODO: 把 OSS URL 拼在消息里发送
+                    // 解析响应，获取上传 URL 和 OSS URL
+                    org.json.JSONObject json = new org.json.JSONObject(respStr);
+                    String uploadUrl = json.optString("uploadUrl", "");
+                    String ossUrl = json.optString("ossUrl", "");
+                    addLog("上传 URL: " + uploadUrl);
+                    addLog("OSS URL: " + ossUrl);
+                    
+                    if (!uploadUrl.isEmpty()) {
+                        // 2. PUT 上传文件到 OSS
+                        addLog("正在上传文件到 OSS...");
+                        URL putUrl = new URL(uploadUrl);
+                        HttpURLConnection putConn = (HttpURLConnection) putUrl.openConnection();
+                        putConn.setRequestMethod("PUT");
+                        putConn.setDoOutput(true);
+                        
+                        java.io.FileInputStream fis = new java.io.FileInputStream(file);
+                        byte[] buffer = new byte[4096];
+                        int len;
+                        java.io.OutputStream os = putConn.getOutputStream();
+                        while ((len = fis.read(buffer)) != -1) {
+                            os.write(buffer, 0, len);
+                        }
+                        fis.close();
+                        os.close();
+                        
+                        int putCode = putConn.getResponseCode();
+                        addLog("OSS 上传响应码: " + putCode);
+                        putConn.disconnect();
+                        
+                        if (putCode == 200) {
+                            addLog("文件上传成功！OSS URL: " + ossUrl);
+                            // TODO: 把 OSS URL 拼在消息里发送
+                        } else {
+                            addLog("OSS 上传失败: " + putCode);
+                        }
+                    }
                 } else {
                     addLog("获取上传地址失败: " + responseCode);
                 }
                 conn.disconnect();
             } catch (Exception e) {
                 addLog("上传文件出错: " + e.getMessage());
+                e.printStackTrace();
             }
         }).start();
         
