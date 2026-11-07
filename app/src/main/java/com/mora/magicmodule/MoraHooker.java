@@ -175,16 +175,16 @@ public class MoraHooker implements IXposedHookLoadPackage {
 
             int targetIndex = parent.indexOfChild(target);
             
-            // 1. 在"清除历史记录"上面加分隔线（和系统原生的分隔线一样）
-            View divider = new View(ctx);
-            divider.setId(MENU_ITEM_ID + 1);
-            divider.setBackgroundColor(0x1F000000); // 浅灰色分隔线
-            LinearLayout.LayoutParams dividerLp = new LinearLayout.LayoutParams(
+            // 1. 在"清除历史记录"上面加分隔线
+            View divider1 = new View(ctx);
+            divider1.setId(MENU_ITEM_ID + 1);
+            divider1.setBackgroundColor(0x1F000000);
+            LinearLayout.LayoutParams divider1Lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 1);
-            divider.setLayoutParams(dividerLp);
-            parent.addView(divider, targetIndex);
+            divider1.setLayoutParams(divider1Lp);
+            parent.addView(divider1, targetIndex);
             
-            // 2. 加"魔姬增强设置"菜单项（样式和清除历史记录一样）
+            // 2. 加"魔姬增强设置"菜单项
             TextView item = new TextView(ctx);
             item.setId(MENU_ITEM_ID);
             item.setText("魔姬增强设置");
@@ -201,6 +201,15 @@ public class MoraHooker implements IXposedHookLoadPackage {
             
             item.setOnClickListener(v -> showMainDialog(ctx));
             parent.addView(item, targetIndex); // 插在分隔线上面
+            
+            // 3. 在"魔姬增强设置"下面也加分隔线，这样上下都有空间
+            View divider2 = new View(ctx);
+            divider2.setId(MENU_ITEM_ID + 2);
+            divider2.setBackgroundColor(0x1F000000);
+            LinearLayout.LayoutParams divider2Lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 1);
+            divider2.setLayoutParams(divider2Lp);
+            parent.addView(divider2, targetIndex + 2); // 插在菜单项下面
             
             addLog("菜单注入成功");
         } catch (Exception e) {
