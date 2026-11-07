@@ -138,48 +138,6 @@ public class MoraHooker implements IXposedHookLoadPackage {
         }
     }
 
-    private void injectMenu(PopupWindow popup) {
-        try {
-            View content = popup.getContentView();
-            if (content == null) return;
-            Context ctx = content.getContext();
-            if (ctx == null) return;
-
-            // 用资源 id 定位"清除历史记录"，比文本匹配更可靠
-            int clearId = ctx.getResources().getIdentifier("clear_history", "id", "com.zte.aiassistant");
-            TextView target = null;
-            if (clearId != 0) {
-                target = content.findViewById(clearId);
-            }
-            // 兜底：如果资源 id 找不到，再用文本匹配
-            if (target == null) {
-                target = findText(content, "清除历史记录");
-            }
-            if (target == null) return;
-
-            ViewGroup parent = (ViewGroup) target.getParent();
-            if (parent == null) return;
-            if (parent.findViewById(MENU_ITEM_ID) != null) return;
-
-            TextView item = new TextView(ctx);
-            item.setId(MENU_ITEM_ID);
-            item.setText("魔姬增强设置");
-            item.setTextSize(16);
-            item.setPadding(target.getPaddingLeft(), target.getPaddingTop(),
-                target.getPaddingRight(), target.getPaddingBottom());
-            item.setTextColor(target.getTextColors());
-
-            ViewGroup.LayoutParams lp = target.getLayoutParams();
-            if (lp != null) item.setLayoutParams(new ViewGroup.LayoutParams(lp.width, lp.height));
-
-            item.setOnClickListener(v -> showMainDialog(ctx));
-            parent.addView(item, parent.indexOfChild(target) + 1);
-            addLog("菜单注入成功");
-        } catch (Exception e) {
-            addLog("injectMenu: " + e.getMessage());
-        }
-    }
-
     private TextView findText(View v, String text) {
         if (v instanceof TextView) {
             TextView tv = (TextView) v;
