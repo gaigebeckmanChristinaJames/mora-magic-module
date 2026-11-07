@@ -474,13 +474,30 @@ public class MoraHooker implements IXposedHookLoadPackage {
     private void uploadFileAndSend(Context ctx, java.io.File file) {
         addLog("开始上传文件: " + file.getName());
         try {
+            // 先把文件复制到魔姬助手的内部目录
+            java.io.File internalDir = new java.io.File(ctx.getFilesDir(), "mora_uploads");
+            internalDir.mkdirs();
+            java.io.File copiedFile = new java.io.File(internalDir, file.getName());
+            
+            java.io.FileInputStream fis = new java.io.FileInputStream(file);
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(copiedFile);
+            byte[] buffer = new byte[4096];
+            int len;
+            while ((len = fis.read(buffer)) != -1) {
+                fos.write(buffer, 0, len);
+            }
+            fis.close();
+            fos.close();
+            addLog("文件已复制到内部目录: " + copiedFile.getAbsolutePath());
+            
             // 反射调用 FileUploadHelper.upload(ctx, file, lastApiKey)
             Class<?> helperClass = Class.forName("com.mora.magicmodule.FileUploadHelper");
             java.lang.reflect.Method method = helperClass.getMethod("upload", Context.class, java.io.File.class, String.class);
-            method.invoke(null, ctx, file, lastApiKey);
+            method.invoke(null, ctx, copiedFile, lastApiKey);
         } catch (Exception e) {
-            addLog("反射调用 FileUploadHelper 失败: " + e.getMessage());
-            Toast.makeText(ctx, "文件上传功能未加载，请检查 classes2.dex", Toast.LENGTH_LONG).show();
+            addLog("上传文件出错: " + e.getMessage());
+            e.printStackTrace();
+            Toast.makeText(ctx, "上传失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -854,23 +871,26 @@ public class MoraHooker implements IXposedHookLoadPackage {
             layout.addView(lv, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 600));
 
-            lv.setOnItemClickListener((parent, view, position, id) -> {
-                File selected = list.get(position);
-                addLog("点击了: " + selected.getName() + (selected.isDirectory() ? " (文件夹)" : " (文件)"));
-                if (selected.isDirectory()) {
-                    showFilePicker(ctx, selected, callback);
-                } else {
-                    addLog("选择文件: " + selected.getAbsolutePath());
-                    callback.onPicked(selected);
-                }
-            });
-
-            addLog("显示文件选择对话框");
-            new AlertDialog.Builder(ctx)
+            final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle("选择文件")
                 .setView(layout)
                 .setNegativeButton("取消", null)
                 .show();
+
+            lv.setOnItemClickListener((parent, view, position, id) -> {
+                File selected = list.get(position);
+                addLog("点击了: " + selected.getName() + (selected.isDirectory() ? " (文件夹)" : " (文件)"));
+                if (selected.isDirectory()) {
+                    dialog.dismiss();
+                    showFilePicker(ctx, selected, callback);
+                } else {
+                    addLog("选择文件: " + selected.getAbsolutePath());
+                    dialog.dismiss();
+                    callback.onPicked(selected);
+                }
+            });
+
+            // dialog 已经在上面创建了
         } catch (Exception e) {
             addLog("文件浏览器失败: " + e.getMessage());
             Toast.makeText(ctx, "文件浏览器失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
