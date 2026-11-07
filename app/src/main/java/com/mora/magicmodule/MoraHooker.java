@@ -467,21 +467,34 @@ public class MoraHooker implements IXposedHookLoadPackage {
         layout.addView(title);
 
         TextView hint = new TextView(ctx);
-        hint.setText("（开发中，后面支持按原生格式发送文件附件）");
+        hint.setText("选择文件后，按原生 OSS 方式上传并发送");
         hint.setTextSize(14);
         hint.setPadding(0, 0, 0, 30);
         layout.addView(hint);
 
         Button btnPick = new Button(ctx);
-        btnPick.setText("选择文件");
+        btnPick.setText("选择文件并发送");
         btnPick.setOnClickListener(v -> {
             showFilePicker(ctx, file -> {
-                Toast.makeText(ctx, "已选择: " + file.getName(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(ctx, "已选择: " + file.getName() + "\n开始上传...", Toast.LENGTH_SHORT).show();
+                addLog("选择文件: " + file.getAbsolutePath());
+                // TODO: 实现 OSS 上传流程
+                uploadFileAndSend(ctx, file);
             });
         });
         layout.addView(btnPick);
 
         new AlertDialog.Builder(ctx).setView(layout).setPositiveButton("返回", null).show();
+    }
+    
+    /** 上传文件并发送 */
+    private void uploadFileAndSend(Context ctx, java.io.File file) {
+        addLog("开始上传文件: " + file.getName());
+        // TODO: 实现 OSS 上传流程
+        // 1. POST /aigcapi/oss/file/presignedurl 获取上传地址
+        // 2. PUT 上传文件到 OSS
+        // 3. 把 OSS URL 拼在消息里发送
+        Toast.makeText(ctx, "上传功能开发中，日志已记录", Toast.LENGTH_LONG).show();
     }
 
     /** 第一层: 设置（日志、状态） */
