@@ -44,15 +44,9 @@ jobs:
           mkdir -p build/res_compiled
           $ANDROID_HOME/build-tools/34.0.0/aapt2 compile app/src/main/res/values/arrays.xml -o build/res_compiled/
 
-      - name: Copy prebuilt classes.dex (original, works)
-        run: |
-          mkdir -p build
-          cp app/src/main/dex/classes.dex build/classes.dex
-          echo "Using prebuilt classes.dex: $(wc -c < build/classes.dex) bytes"
-
       - name: Compile FileUploadHelper to classes2.dex
         run: |
-          mkdir -p build/obj2
+          mkdir -p build/obj2 build/dex_out
           javac -source 8 -target 8 \
             -cp build/stub_classes:$ANDROID_HOME/platforms/android-34/android.jar \
             -d build/obj2 \
@@ -63,9 +57,9 @@ jobs:
               --release \
               --min-api 26 \
               --lib $ANDROID_HOME/platforms/android-34/android.jar \
-              --output build \
+              --output build/dex_out \
               $(find build/obj2 -name "*.class")
-            mv build/classes.dex build/classes2.dex
+            cp build/dex_out/classes.dex build/classes2.dex
             echo "Created classes2.dex: $(wc -c < build/classes2.dex) bytes"
           else
             echo "FileUploadHelper not compiled, no classes2.dex"
@@ -82,15 +76,19 @@ jobs:
             --auto-add-overlay \
             --min-sdk-version 26 \
             --target-sdk-version 34 \
-            --version-code 123 \
-            --version-name "12.3.0"
+            --version-code 124 \
+            --version-name "12.3.1"
 
           # Add dex files
           cd build
+          # 原来的预编译 classes.dex
+          cp ../app/src/main/dex/classes.dex .
           zip -q -j unsigned.apk classes.dex
+          echo "Added classes.dex: $(wc -c < classes.dex) bytes"
+          # 新的 classes2.dex（FileUploadHelper）
           if [ -f classes2.dex ]; then
             zip -q -j unsigned.apk classes2.dex
-            echo "Added classes2.dex"
+            echo "Added classes2.dex: $(wc -c < classes2.dex) bytes"
           fi
 
           # Add assets
@@ -114,11 +112,11 @@ jobs:
             --ks build/mora.jks \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out build/mora-magic-v12.3.apk \
+            --out build/mora-magic-v12.3.1.apk \
             build/aligned.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: mora-magic-v12.3
-          path: build/mora-magic-v12.3.apk
+          name: mora-magic-v12.3.1
+          path: build/mora-magic-v12.3.1.apk
