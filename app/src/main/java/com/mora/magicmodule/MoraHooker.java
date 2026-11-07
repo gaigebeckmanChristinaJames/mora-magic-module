@@ -74,9 +74,11 @@ public class MoraHooker implements IXposedHookLoadPackage {
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
         if (!TARGET_PACKAGE.equals(lpparam.packageName)) return;
-        addLog("=== v11.0 模块加载 ===");
+        addLog("=== v11.2 模块加载 ===");
         addLog("目标包名: " + lpparam.packageName);
         addLog("开始安装 Hook...");
+        hookPopupWindow();
+        addLog("✓ PopupWindow Hook 已安装");
         hookOkHttp(lpparam);
         addLog("✓ OkHttp Hook 已安装");
         addLog("所有 Hook 安装完成");
