@@ -18,12 +18,16 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install build tools
         run: |
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "extras;android;m2repository"
+          sudo apt-get update
+          sudo apt-get install -y android-sdk-cmdline-tools
+          echo "ANDROID_HOME=/usr/lib/android-sdk" >> $GITHUB_ENV
+          echo "/usr/lib/android-sdk/cmdline-tools/bin" >> $GITHUB_PATH
+
+      - name: Accept licenses and install packages
+        run: |
           yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Download Xposed API
         run: |
@@ -51,12 +55,9 @@ jobs:
 
       - name: Build APK
         run: |
-          # Compile resources
-          $ANDROID_HOME/build-tools/35.0.0/aapt2 compile \
-            --dir app/src/main/res \
-            -o build/res.zip || echo "No resources"
+          mkdir -p build
 
-          # Link
+          # Link resources (empty for now)
           $ANDROID_HOME/build-tools/35.0.0/aapt2 link \
             -o build/unsigned.apk \
             -I $ANDROID_HOME/platforms/android-35/android.jar \
@@ -64,20 +65,7 @@ jobs:
             --min-sdk-version 26 \
             --target-sdk-version 35 \
             --version-code 79 \
-            --version-name "7.9.0" \
-            build/res.zip || echo "No resources to link"
-
-          # If no resources, build base apk from manifest
-          if [ ! -f build/unsigned.apk ]; then
-            $ANDROID_HOME/build-tools/35.0.0/aapt2 link \
-              -o build/unsigned.apk \
-              -I $ANDROID_HOME/platforms/android-35/android.jar \
-              --manifest app/src/main/AndroidManifest.xml \
-              --min-sdk-version 26 \
-              --target-sdk-version 35 \
-              --version-code 79 \
-              --version-name "7.9.0"
-          fi
+            --version-name "7.9.0"
 
           # Add classes.dex
           cd build
