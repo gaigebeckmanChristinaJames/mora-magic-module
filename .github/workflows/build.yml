@@ -32,10 +32,39 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
+      - name: Compile Xposed stub
+        run: |
+          mkdir -p stub_classes
+          javac -d stub_classes \
+            stub/de/robv/android/xposed/IXposedHookLoadPackage.java \
+            stub/de/robv/android/xposed/XC_MethodHook.java \
+            stub/de/robv/android/xposed/XposedHelpers.java \
+            stub/de/robv/android/xposed/callbacks/XC_LoadPackage.java
+          jar cf xposed-stub.jar -C stub_classes .
+
       - name: Compile resources
         run: |
           mkdir -p build/res_compiled
           $ANDROID_HOME/build-tools/34.0.0/aapt2 compile app/src/main/res/values/arrays.xml -o build/res_compiled/
+
+      - name: Compile Java sources
+        run: |
+          mkdir -p obj
+          javac \
+            -source 8 -target 8 \
+            -cp $ANDROID_HOME/platforms/android-34/android.jar:xposed-stub.jar \
+            -d obj \
+            app/src/main/java/com/mora/magicmodule/MoraHooker.java
+
+      - name: Convert to DEX
+        run: |
+          mkdir -p build
+          $ANDROID_HOME/build-tools/34.0.0/d8 \
+            --release \
+            --min-api 26 \
+            --lib $ANDROID_HOME/platforms/android-34/android.jar \
+            --output build \
+            $(find obj -name "*.class")
 
       - name: Build APK
         run: |
@@ -50,11 +79,10 @@ jobs:
             --auto-add-overlay \
             --min-sdk-version 26 \
             --target-sdk-version 34 \
-            --version-code 93 \
-            --version-name "9.3.0"
+            --version-code 94 \
+            --version-name "9.4.0"
 
           # 准备文件
-          cp app/src/main/dex/classes.dex build/classes.dex
           mkdir -p build/assets
           cp app/src/main/assets/xposed_init build/assets/xposed_init
 
