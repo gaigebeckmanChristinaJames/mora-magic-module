@@ -74,54 +74,67 @@ public class MoraHooker implements IXposedHookLoadPackage {
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
         if (!TARGET_PACKAGE.equals(lpparam.packageName)) return;
-        addLog("=== v10.2 模块加载 ===");
-        hookActivityResume(lpparam);
+        addLog("=== v10.3 模块加载 ===");
+        hookPopupWindow();
         hookOkHttp(lpparam);
     }
 
-    private void hookActivityResume(XC_LoadPackage.LoadPackageParam lpparam) {
-        // Hook 聊天 Activity 的 onResume，找到三点按钮并设置长按监听
-        XposedHelpers.findAndHookMethod(android.app.Activity.class, "onResume", new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                try {
-                    android.app.Activity activity = (android.app.Activity) param.thisObject;
-                    View decorView = activity.getWindow().getDecorView();
-                    
-                    // 找三点按钮：找所有 ImageView，内容描述包含"更多"或"菜单"
-                    findAndSetupLongPress(decorView, activity);
-                } catch (Exception e) {
-                    addLog("hookActivityResume: " + e.getMessage());
+    private void hookPopupWindow() {
+        XposedHelpers.findAndHookMethod(PopupWindow.class, "showAsDropDown",
+            View.class, int.class, int.class, int.class, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    injectMenu((PopupWindow) param.thisObject);
                 }
-            }
-        });
+            });
+        XposedHelpers.findAndHookMethod(PopupWindow.class, "showAtLocation",
+            View.class, int.class, int.class, int.class, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    injectMenu((PopupWindow) param.thisObject);
+                }
+            });
     }
 
-    private void findAndSetupLongPress(View view, android.app.Activity activity) {
-        if (view instanceof android.widget.ImageView) {
-            android.widget.ImageView iv = (android.widget.ImageView) view;
-            CharSequence desc = iv.getContentDescription();
-            if (desc != null) {
-                String descStr = desc.toString().toLowerCase();
-                // 三点按钮的内容描述通常是"更多"、"菜单"、"选项"
-                if (descStr.contains("更多") || descStr.contains("菜单") || descStr.contains("选项") || descStr.contains("more")) {
-                    if (iv.getTag(0x12345678) == null) {
-                        iv.setTag(0x12345678, true);
-                        iv.setOnLongClickListener(v -> {
-                            showMainDialog(activity);
-                            return true;
-                        });
-                        addLog("三点按钮长按已设置");
-                    }
-                    return;
-                }
+    private void injectMenu(PopupWindow popup) {
+        try {
+            View content = popup.getContentView();
+            if (content == null) return;
+            Context ctx = content.getContext();
+            if (ctx == null) return;
+
+            // 用资源 id 定位"清除历史记录"，比文本匹配更可靠
+            int clearId = ctx.getResources().getIdentifier("clear_history", "id", "com.zte.aiassistant");
+            TextView target = null;
+            if (clearId != 0) {
+                target = content.findViewById(clearId);
             }
-        }
-        if (view instanceof ViewGroup) {
-            ViewGroup vg = (ViewGroup) view;
-            for (int i = 0; i < vg.getChildCount(); i++) {
-                findAndSetupLongPress(vg.getChildAt(i), activity);
+            // 兜底：如果资源 id 找不到，再用文本匹配
+            if (target == null) {
+                target = findText(content, "清除历史记录");
             }
+            if (target == null) return;
+
+            ViewGroup parent = (ViewGroup) target.getParent();
+            if (parent == null) return;
+            if (parent.findViewById(MENU_ITEM_ID) != null) return;
+
+            TextView item = new TextView(ctx);
+            item.setId(MENU_ITEM_ID);
+            item.setText("魔姬增强设置");
+            item.setTextSize(16);
+            item.setPadding(target.getPaddingLeft(), target.getPaddingTop(),
+                target.getPaddingRight(), target.getPaddingBottom());
+            item.setTextColor(target.getTextColors());
+
+            ViewGroup.LayoutParams lp = target.getLayoutParams();
+            if (lp != null) item.setLayoutParams(new ViewGroup.LayoutParams(lp.width, lp.height));
+
+            item.setOnClickListener(v -> showMainDialog(ctx));
+            parent.addView(item, parent.indexOfChild(target) + 1);
+            addLog("菜单注入成功");
+        } catch (Exception e) {
+            addLog("injectMenu: " + e.getMessage());
         }
     }
 
