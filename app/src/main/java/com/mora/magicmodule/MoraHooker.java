@@ -788,13 +788,28 @@ public class MoraHooker implements IXposedHookLoadPackage {
 
     /** 文件浏览器 */
     private void showFilePicker(Context ctx, final OnFilePicked callback) {
-        showFilePicker(ctx, new File("/sdcard"), callback);
+        addLog("打开文件选择器");
+        try {
+            // 用应用的外部存储目录作为默认目录
+            File defaultDir = ctx.getExternalFilesDir(null);
+            if (defaultDir == null || !defaultDir.exists()) {
+                defaultDir = new File("/sdcard");
+            }
+            addLog("默认目录: " + defaultDir.getAbsolutePath());
+            showFilePicker(ctx, defaultDir, callback);
+        } catch (Exception e) {
+            addLog("文件选择器出错: " + e.getMessage());
+            Toast.makeText(ctx, "文件选择器出错: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void showFilePicker(Context ctx, File dir, final OnFilePicked callback) {
         try {
-            if (!dir.exists()) dir = new File("/sdcard");
-            final File currentDir = dir;
+            if (!dir.exists()) {
+                addLog("目录不存在: " + dir.getAbsolutePath());
+                return;
+            }
+            addLog("浏览目录: " + dir.getAbsolutePath());
 
             File[] files = dir.listFiles();
             final ArrayList<File> list = new ArrayList<>();
@@ -807,6 +822,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
                     return a.getName().compareToIgnoreCase(b.getName());
                 });
             }
+            addLog("找到 " + list.size() + " 个文件/文件夹");
 
             LinearLayout layout = new LinearLayout(ctx);
             layout.setOrientation(LinearLayout.VERTICAL);
@@ -836,23 +852,27 @@ public class MoraHooker implements IXposedHookLoadPackage {
             ArrayAdapter<String> adapter = new ArrayAdapter<>(ctx, android.R.layout.simple_list_item_1, names);
             lv.setAdapter(adapter);
             layout.addView(lv, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 800)); // 固定高度，做大一点
+                ViewGroup.LayoutParams.MATCH_PARENT, 600));
 
             lv.setOnItemClickListener((parent, view, position, id) -> {
                 File selected = list.get(position);
+                addLog("点击了: " + selected.getName() + (selected.isDirectory() ? " (文件夹)" : " (文件)"));
                 if (selected.isDirectory()) {
                     showFilePicker(ctx, selected, callback);
                 } else {
+                    addLog("选择文件: " + selected.getAbsolutePath());
                     callback.onPicked(selected);
                 }
             });
 
+            addLog("显示文件选择对话框");
             new AlertDialog.Builder(ctx)
                 .setTitle("选择文件")
                 .setView(layout)
                 .setNegativeButton("取消", null)
                 .show();
         } catch (Exception e) {
+            addLog("文件浏览器失败: " + e.getMessage());
             Toast.makeText(ctx, "文件浏览器失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
