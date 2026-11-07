@@ -8,7 +8,6 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -28,17 +27,14 @@ import java.util.Locale;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public class MoraHooker2 implements IXposedHookLoadPackage {
 
     private static final String TAG = "MoraHooker2";
-    private static String lastApiKey = "";
     private static Context appContext = null;
     private static File selectedFile = null;
-    private static AlertDialog currentDialog = null;
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
@@ -69,48 +65,6 @@ public class MoraHooker2 implements IXposedHookLoadPackage {
             addLog("Hook PopupWindow 成功");
         } catch (Exception e) {
             addLog("Hook PopupWindow 失败: " + e.getMessage());
-        }
-
-        // Hook OkHttp newCall 拦截请求
-        try {
-            XposedHelpers.findAndHookMethod(
-                "okhttp3.OkHttpClient",
-                lpparam.classLoader,
-                "newCall",
-                okhttp3.Request.class,
-                new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                        try {
-                            okhttp3.Request request = (okhttp3.Request) param.args[0];
-                            String url = request.url().toString();
-                            addLog("网络请求: " + url);
-
-                            // 记录 API key
-                            String auth = request.header("Authorization");
-                            if (auth != null && !auth.isEmpty()) {
-                                lastApiKey = auth;
-                            }
-
-                            // 拦截 chat 请求
-                            if (url.contains("/chat")) {
-                                okhttp3.RequestBody body = request.body();
-                                if (body != null) {
-                                    Buffer buffer = new Buffer();
-                                    body.writeTo(buffer);
-                                    String bodyStr = buffer.readUtf8();
-                                    addLog("原始请求体: " + bodyStr.substring(0, Math.min(200, bodyStr.length())) + "...");
-                                }
-                            }
-                        } catch (Exception e) {
-                            addLog("OkHttp Hook 异常: " + e.getMessage());
-                        }
-                    }
-                }
-            );
-            addLog("Hook OkHttp 成功");
-        } catch (Exception e) {
-            addLog("Hook OkHttp 失败: " + e.getMessage());
         }
     }
 
@@ -172,12 +126,12 @@ public class MoraHooker2 implements IXposedHookLoadPackage {
     private ViewGroup findLinearLayout(View view) {
         if (view instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) view;
-            if (vg instanceof android.widget.LinearLayout) {
+            if (vg instanceof LinearLayout) {
                 return vg;
             }
             for (int i = 0; i < vg.getChildCount(); i++) {
                 View child = vg.getChildAt(i);
-                View result = findLinearLayout(child);
+                ViewGroup result = findLinearLayout(child);
                 if (result != null) return result;
             }
         }
@@ -205,7 +159,6 @@ public class MoraHooker2 implements IXposedHookLoadPackage {
             statusText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
             statusText.setPadding(0, dp(10), 0, dp(10));
             layout.addView(statusText);
-            statusText.setTag("status");
 
             // 选择文件按钮
             TextView selectBtn = new TextView(ctx);
@@ -237,11 +190,7 @@ public class MoraHooker2 implements IXposedHookLoadPackage {
                         try {
                             String ossUrl = uploadFileToOSS(selectedFile);
                             addLog("上传成功: " + ossUrl);
-                            // TODO: 把 ossUrl 拼到消息里发送
                             showToast(ctx, "上传成功: " + selectedFile.getName());
-                            if (currentDialog != null) {
-                                currentDialog.dismiss();
-                            }
                         } catch (Exception e) {
                             addLog("上传失败: " + e.getMessage());
                             showToast(ctx, "上传失败: " + e.getMessage());
@@ -250,7 +199,7 @@ public class MoraHooker2 implements IXposedHookLoadPackage {
                 }
             });
 
-            currentDialog = new AlertDialog.Builder(ctx)
+            new AlertDialog.Builder(ctx)
                 .setView(layout)
                 .setCancelable(true)
                 .show();
@@ -298,11 +247,6 @@ public class MoraHooker2 implements IXposedHookLoadPackage {
                             selectedFile = file;
                             statusText.setText("已选择: " + file.getName());
                             showToast(ctx, "已选择: " + file.getName());
-                            // 关闭文件选择器对话框
-                            if (currentDialog != null) {
-                                // 找到文件选择器的对话框并关闭
-                                // 这里简单处理：直接关闭所有对话框
-                            }
                         });
                         fileList.addView(fileItem);
                     }
@@ -324,7 +268,6 @@ public class MoraHooker2 implements IXposedHookLoadPackage {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("Authorization", lastApiKey);
         conn.setDoOutput(true);
 
         String requestBody = "{\"fileName\":\"" + file.getName() + "\",\"filePath\":\"tempfiles/\"}";
@@ -401,7 +344,6 @@ public class MoraHooker2 implements IXposedHookLoadPackage {
         try {
             String time = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
             String logLine = time + " [MoraHooker2] " + message + "\n";
-            XposedBridge.log(logLine);
 
             // 写到文件
             if (appContext != null) {
@@ -422,30 +364,5 @@ public class MoraHooker2 implements IXposedHookLoadPackage {
 
     private int dp(int dp) {
         return (int) (dp * appContext.getResources().getDisplayMetrics().density);
-    }
-
-    // Buffer 类用于读取 RequestBody
-    static class Buffer {
-        private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-        void write(okio.Buffer source) {
-            try {
-                byte[] data = new byte[(int) source.size()];
-                source.read(data);
-                baos.write(data);
-            } catch (Exception e) {
-            }
-        }
-
-        public void writeTo(okio.Buffer buffer) {
-            buffer.write(baos.toByteArray());
-        }
-
-        public String readUtf8() {
-            return baos.toString();
-        }
-    }
-
-    static class ByteArrayOutputStream extends java.io.ByteArrayOutputStream {
     }
 }
