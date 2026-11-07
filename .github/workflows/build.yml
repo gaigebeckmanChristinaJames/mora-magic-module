@@ -79,8 +79,8 @@ jobs:
             --auto-add-overlay \
             --min-sdk-version 26 \
             --target-sdk-version 34 \
-            --version-code 96 \
-            --version-name "9.6.0"
+            --version-code 97 \
+            --version-name "9.7.0"
 
           # 准备文件
           mkdir -p build/assets
@@ -107,11 +107,11 @@ jobs:
             --ks build/mora.jks \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out build/魔姬增强模块_v9.6.apk \
+            --out build/魔姬增强模块_v9.7.apk \
             build/aligned.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 魔姬增强模块_v9.6
-          path: build/魔姬增强模块_v9.6.apk
+          name: 魔姬增强模块_v9.7
+          path: build/魔姬增强模块_v9.7.apk

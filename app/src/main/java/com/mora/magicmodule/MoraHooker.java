@@ -287,30 +287,92 @@ public class MoraHooker implements IXposedHookLoadPackage {
     private void showMainDialog(Context ctx) {
         LinearLayout layout = new LinearLayout(ctx);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(50, 50, 50, 50);
+        layout.setPadding(48, 48, 48, 48);
 
+        // 标题
         TextView title = new TextView(ctx);
-        title.setText("魔姬增强设置");
-        title.setTextSize(22);
-        title.setPadding(0, 0, 0, 30);
+        title.setText("魔姬增强");
+        title.setTextSize(24);
+        title.getPaint().setFakeBoldText(true);
+        title.setPadding(0, 0, 0, 12);
         layout.addView(title);
 
-        Button btnFormat = new Button(ctx);
-        btnFormat.setText("消息格式");
-        btnFormat.setOnClickListener(v -> showFormatDialog(ctx));
-        layout.addView(btnFormat);
+        TextView subtitle = new TextView(ctx);
+        subtitle.setText("增强魔姬助手体验");
+        subtitle.setTextSize(14);
+        subtitle.setTextColor(0xFF666666);
+        subtitle.setPadding(0, 0, 0, 36);
+        layout.addView(subtitle);
 
-        Button btnFile = new Button(ctx);
-        btnFile.setText("文件附件");
-        btnFile.setOnClickListener(v -> showFileDialog(ctx));
-        layout.addView(btnFile);
+        // 功能卡片 1: 消息改写
+        View card1 = createSettingCard(ctx, "✏️", "消息改写", "自动在消息中添加时间戳", v -> showFormatDialog(ctx));
+        layout.addView(card1);
 
-        Button btnSettings = new Button(ctx);
-        btnSettings.setText("设置");
-        btnSettings.setOnClickListener(v -> showSettingsDialog2(ctx));
-        layout.addView(btnSettings);
+        // 间距
+        View space1 = new View(ctx);
+        space1.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 16));
+        layout.addView(space1);
 
-        new AlertDialog.Builder(ctx).setView(layout).setPositiveButton("关闭", null).show();
+        // 功能卡片 2: 文件附件
+        View card2 = createSettingCard(ctx, "📎", "文件附件", "按原生 OSS 方式发送文件", v -> showFileDialog(ctx));
+        layout.addView(card2);
+
+        // 间距
+        View space2 = new View(ctx);
+        space2.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 16));
+        layout.addView(space2);
+
+        // 功能卡片 3: 日志与状态
+        View card3 = createSettingCard(ctx, "📊", "日志与状态", "查看运行日志和模块状态", v -> showSettingsDialog2(ctx));
+        layout.addView(card3);
+
+        new AlertDialog.Builder(ctx)
+            .setView(layout)
+            .setPositiveButton("关闭", null)
+            .show();
+    }
+
+    /** 创建一个设置卡片条目 */
+    private View createSettingCard(Context ctx, String icon, String title, String desc, android.view.View.OnClickListener onClick) {
+        LinearLayout card = new LinearLayout(ctx);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setPadding(32, 28, 32, 28);
+        card.setBackgroundColor(0xFFF5F5F5);
+        card.setClickable(true);
+        card.setOnClickListener(onClick);
+
+        // 图标
+        TextView iconView = new TextView(ctx);
+        iconView.setText(icon);
+        iconView.setTextSize(24);
+        iconView.setPadding(0, 0, 24, 0);
+        card.addView(iconView);
+
+        // 文字区域
+        LinearLayout textArea = new LinearLayout(ctx);
+        textArea.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        textArea.setLayoutParams(lp);
+
+        TextView titleView = new TextView(ctx);
+        titleView.setText(title);
+        titleView.setTextSize(16);
+        titleView.getPaint().setFakeBoldText(true);
+        textArea.addView(titleView);
+
+        TextView descView = new TextView(ctx);
+        descView.setText(desc);
+        descView.setTextSize(13);
+        descView.setTextColor(0xFF666666);
+        descView.setPadding(0, 4, 0, 0);
+        textArea.addView(descView);
+
+        card.addView(textArea);
+
+        return card;
     }
 
     /** 第一层: 文件附件 */
