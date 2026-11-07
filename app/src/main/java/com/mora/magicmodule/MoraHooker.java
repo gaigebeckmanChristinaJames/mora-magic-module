@@ -74,26 +74,55 @@ public class MoraHooker implements IXposedHookLoadPackage {
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
         if (!TARGET_PACKAGE.equals(lpparam.packageName)) return;
-        addLog("=== v7.0 模块加载 ===");
-        hookPopupWindow();
+        addLog("=== v10.2 模块加载 ===");
+        hookActivityResume(lpparam);
         hookOkHttp(lpparam);
     }
 
-    private void hookPopupWindow() {
-        XposedHelpers.findAndHookMethod(PopupWindow.class, "showAsDropDown",
-            View.class, int.class, int.class, int.class, new XC_MethodHook() {
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    injectMenu((PopupWindow) param.thisObject);
+    private void hookActivityResume(XC_LoadPackage.LoadPackageParam lpparam) {
+        // Hook 聊天 Activity 的 onResume，找到三点按钮并设置长按监听
+        XposedHelpers.findAndHookMethod(android.app.Activity.class, "onResume", new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                try {
+                    android.app.Activity activity = (android.app.Activity) param.thisObject;
+                    View decorView = activity.getWindow().getDecorView();
+                    
+                    // 找三点按钮：找所有 ImageView，内容描述包含"更多"或"菜单"
+                    findAndSetupLongPress(decorView, activity);
+                } catch (Exception e) {
+                    addLog("hookActivityResume: " + e.getMessage());
                 }
-            });
-        XposedHelpers.findAndHookMethod(PopupWindow.class, "showAtLocation",
-            View.class, int.class, int.class, int.class, new XC_MethodHook() {
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    injectMenu((PopupWindow) param.thisObject);
+            }
+        });
+    }
+
+    private void findAndSetupLongPress(View view, android.app.Activity activity) {
+        if (view instanceof android.widget.ImageView) {
+            android.widget.ImageView iv = (android.widget.ImageView) view;
+            CharSequence desc = iv.getContentDescription();
+            if (desc != null) {
+                String descStr = desc.toString().toLowerCase();
+                // 三点按钮的内容描述通常是"更多"、"菜单"、"选项"
+                if (descStr.contains("更多") || descStr.contains("菜单") || descStr.contains("选项") || descStr.contains("more")) {
+                    if (iv.getTag(0x12345678) == null) {
+                        iv.setTag(0x12345678, true);
+                        iv.setOnLongClickListener(v -> {
+                            showMainDialog(activity);
+                            return true;
+                        });
+                        addLog("三点按钮长按已设置");
+                    }
+                    return;
                 }
-            });
+            }
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                findAndSetupLongPress(vg.getChildAt(i), activity);
+            }
+        }
     }
 
     private void injectMenu(PopupWindow popup) {
