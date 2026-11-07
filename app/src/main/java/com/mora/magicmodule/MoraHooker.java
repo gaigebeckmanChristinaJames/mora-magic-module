@@ -148,6 +148,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
         try {
             Class<?> clientCls = XposedHelpers.findClass("okhttp3.OkHttpClient", lpparam.classLoader);
             Class<?> reqCls = XposedHelpers.findClass("okhttp3.Request", lpparam.classLoader);
+            Class<?> bufCls = XposedHelpers.findClass("okio.Buffer", lpparam.classLoader);
 
             XposedHelpers.findAndHookMethod(clientCls, "newCall", reqCls, new XC_MethodHook() {
                 @Override
@@ -168,12 +169,23 @@ public class MoraHooker implements IXposedHookLoadPackage {
                             } catch (Exception e) {}
                         }
 
+                        // 打印 presignedurl 接口的请求体
+                        if (url.contains("presignedurl") || url.contains("oss/")) {
+                            Object body = XposedHelpers.callMethod(req, "body");
+                            if (body != null) {
+                                Object buf = bufCls.newInstance();
+                                XposedHelpers.callMethod(body, "writeTo", buf);
+                                String orig = (String) XposedHelpers.callMethod(buf, "readUtf8");
+                                addLog(3, "[文件接口] 请求体: " + orig);
+                            }
+                            return;
+                        }
+
                         if (!url.contains("/chat")) return;
 
                         Object body = XposedHelpers.callMethod(req, "body");
                         if (body == null) return;
 
-                        Class<?> bufCls = XposedHelpers.findClass("okio.Buffer", lpparam.classLoader);
                         Object buf = bufCls.newInstance();
                         XposedHelpers.callMethod(body, "writeTo", buf);
                         String orig = (String) XposedHelpers.callMethod(buf, "readUtf8");
@@ -194,6 +206,14 @@ public class MoraHooker implements IXposedHookLoadPackage {
                     } catch (Exception e) {
                         addLog("hookOkHttp: " + e.getMessage());
                     }
+                }
+
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    try {
+                        Object call = param.thisObject;
+                        // 不处理响应，先只抓请求
+                    } catch (Exception e) {}
                 }
             });
             addLog("OkHttp Hook 已安装");
