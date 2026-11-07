@@ -50,16 +50,19 @@ jobs:
             --auto-add-overlay \
             --min-sdk-version 26 \
             --target-sdk-version 34 \
-            --version-code 90 \
-            --version-name "9.0.0"
+            --version-code 91 \
+            --version-name "9.1.0"
 
-          # Add classes.dex
+          # 准备文件到 build 目录，避免路径错误
+          cp app/src/main/dex/classes.dex build/classes.dex
+          mkdir -p build/assets
+          cp app/src/main/assets/xposed_init build/assets/xposed_init
+
+          # Add classes.dex (用 -j 去掉路径)
           cd build
-          zip -q unsigned.apk ../app/src/main/dex/classes.dex
+          zip -q -j unsigned.apk classes.dex
+          zip -q -r unsigned.apk assets/
           cd ..
-
-          # Add xposed_init (从根目录操作，不用 cd)
-          zip -q build/unsigned.apk app/src/main/assets/xposed_init
 
           # Zipalign
           $ANDROID_HOME/build-tools/34.0.0/zipalign -f 4 build/unsigned.apk build/aligned.apk
@@ -76,11 +79,11 @@ jobs:
             --ks build/mora.jks \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out build/魔姬增强模块_v9.0.apk \
+            --out build/魔姬增强模块_v9.1.apk \
             build/aligned.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 魔姬增强模块_v9.0
-          path: build/魔姬增强模块_v9.0.apk
+          name: 魔姬增强模块_v9.1
+          path: build/魔姬增强模块_v9.1.apk
