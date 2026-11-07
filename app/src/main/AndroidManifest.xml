@@ -2,12 +2,29 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.mora.magicmodule">
 
-    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35" />
+    <application
+        android:allowBackup="true"
+        android:label="魔姬增强模块"
+        android:supportsRtl="true">
 
-    <application android:label="魔姬增强模块" android:icon="@android:drawable/ic_menu_manage">
-        <meta-data android:name="xposedmodule" android:value="true" />
-        <meta-data android:name="xposeddescription" android:value="魔姬助手增强模块" />
-        <meta-data android:name="xposedminversion" android:value="82" />
+        <!-- LSPosed 模块标记 -->
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="魔姬助手增强：菜单注入、话术自定义、解锁全部皮肤、关闭播报限制" />
+        <meta-data
+            android:name="xposedminversion"
+            android:value="93" />
+        <meta-data
+            android:name="xposedscope"
+            android:resource="@array/xposed_scope" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:label="魔姬增强设置"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
     </application>
-
 </manifest>
