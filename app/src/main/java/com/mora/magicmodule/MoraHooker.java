@@ -70,12 +70,17 @@ public class MoraHooker implements IXposedHookLoadPackage {
         if (logs.size() > MAX_LOGS) logs.remove(0);
         Log.i(TAG, msg);
         
-        // 写日志到 /data/local/tmp/ 目录，供主界面读取
+        // 写日志到魔姬助手内部目录
         try {
-            java.io.File logFile = new java.io.File("/data/local/tmp/mora_logs.txt");
-            java.io.FileWriter fw = new java.io.FileWriter(logFile, true);
-            fw.write(line + "\n");
-            fw.close();
+            android.content.Context ctx = android.app.AndroidAppHelper.currentApplication();
+            if (ctx != null) {
+                java.io.File dir = new java.io.File(ctx.getFilesDir(), "mora_logs");
+                dir.mkdirs();
+                java.io.File logFile = new java.io.File(dir, "logs.txt");
+                java.io.FileWriter fw = new java.io.FileWriter(logFile, true);
+                fw.write(line + "\n");
+                fw.close();
+            }
         } catch (Exception e) {
             // 忽略写文件错误
         }
@@ -103,6 +108,16 @@ public class MoraHooker implements IXposedHookLoadPackage {
         }
         
         addLog("Hook 安装流程结束");
+        
+        // 弹出 Toast 提示
+        try {
+            android.content.Context ctx = android.app.AndroidAppHelper.currentApplication();
+            if (ctx != null) {
+                android.widget.Toast.makeText(ctx, "魔姬增强模块已注入成功", android.widget.Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            // 忽略 Toast 错误
+        }
     }
 
     private void hookPopupWindow() {

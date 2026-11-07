@@ -26,7 +26,8 @@ public class MainActivity extends Activity {
         StringBuilder logSb = new StringBuilder();
         boolean hookRunning = false;
         try {
-            File logFile = new File("/data/local/tmp/mora_logs.txt");
+            File logDir = new File("/data/data/com.zte.aiassistant/files/mora_logs");
+            File logFile = new File(logDir, "logs.txt");
             if (logFile.exists() && logFile.length() > 0) {
                 BufferedReader reader = new BufferedReader(new FileReader(logFile));
                 String line;
