@@ -58,10 +58,8 @@ jobs:
           zip -q unsigned.apk ../app/src/main/dex/classes.dex
           cd ..
 
-          # Add xposed_init
-          cd app/src/main
-          zip -q ../../build/unsigned.apk assets/xposed_init
-          cd ../..
+          # Add xposed_init (从根目录操作，不用 cd)
+          zip -q build/unsigned.apk app/src/main/assets/xposed_init
 
           # Zipalign
           $ANDROID_HOME/build-tools/34.0.0/zipalign -f 4 build/unsigned.apk build/aligned.apk
