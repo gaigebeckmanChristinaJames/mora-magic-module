@@ -41,6 +41,11 @@ public class MoraHooker2 implements IXposedHookLoadPackage {
         if (!"com.zte.aiassistant".equals(lpparam.packageName)) return;
 
         addLog("MoraHooker2: 初始化完成");
+        
+        // 测试 Toast - 确认 Hook 有没有运行
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            android.widget.Toast.makeText(android.app.ActivityThread.currentApplication(), "MoraHooker2 已加载", android.widget.Toast.LENGTH_LONG).show();
+        });
 
         // Hook PopupWindow 注入菜单
         try {
