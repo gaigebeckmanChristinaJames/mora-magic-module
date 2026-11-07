@@ -2,7 +2,6 @@ package com.mora.magicmodule;
 
 import android.app.Activity;
 import android.graphics.Color;
-import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
@@ -21,97 +20,59 @@ public class MainActivity extends Activity {
         
         LinearLayout rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
-        rootLayout.setBackgroundColor(Color.parseColor("#F5F7FA"));
+        rootLayout.setBackgroundColor(Color.parseColor("#F8F9FA"));
         
-        // === 顶部状态区域 ===
-        LinearLayout statusLayout = new LinearLayout(this);
-        statusLayout.setOrientation(LinearLayout.VERTICAL);
-        statusLayout.setPadding(48, 56, 48, 32);
-        statusLayout.setBackgroundColor(Color.parseColor("#6750A4"));
+        // 顶部状态栏卡片
+        LinearLayout statusCard = new LinearLayout(this);
+        statusCard.setOrientation(LinearLayout.VERTICAL);
+        statusCard.setPadding(48, 40, 48, 40);
+        statusCard.setBackgroundColor(Color.parseColor("#6750A4"));
         
-        // 标题
         TextView title = new TextView(this);
         title.setText("魔姬增强模块");
         title.setTextSize(22);
         title.getPaint().setFakeBoldText(true);
         title.setTextColor(Color.WHITE);
         title.setPadding(0, 0, 0, 8);
-        statusLayout.addView(title);
+        statusCard.addView(title);
         
-        // 版本信息
         TextView version = new TextView(this);
-        version.setText("v11.2.2 | com.zte.aiassistant");
+        version.setText("v11.3 | com.zte.aiassistant");
         version.setTextSize(13);
         version.setTextColor(Color.parseColor("#EADDFF"));
-        statusLayout.addView(version);
+        statusCard.addView(version);
         
-        rootLayout.addView(statusLayout);
+        rootLayout.addView(statusCard);
         
-        // === Hook 状态卡片 ===
-        LinearLayout hookCard = new LinearLayout(this);
-        hookCard.setOrientation(LinearLayout.VERTICAL);
-        hookCard.setPadding(32, 28, 32, 28);
-        hookCard.setBackgroundColor(Color.WHITE);
-        hookCard.setElevation(2);
-        LinearLayout.LayoutParams hookParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        hookParams.setMargins(32, 32, 32, 16);
-        hookCard.setLayoutParams(hookParams);
+        // Hook 状态标签
+        LinearLayout hookRow = new LinearLayout(this);
+        hookRow.setOrientation(LinearLayout.HORIZONTAL);
+        hookRow.setPadding(32, 24, 32, 24);
         
-        TextView hookTitle = new TextView(this);
-        hookTitle.setText("Hook 状态");
-        hookTitle.setTextSize(15);
-        hookTitle.getPaint().setFakeBoldText(true);
-        hookTitle.setTextColor(Color.parseColor("#1D1B20"));
-        hookTitle.setPadding(0, 0, 0, 12);
-        hookCard.addView(hookTitle);
+        TextView hook1 = createBadge("PopupWindow", "#4CAF50");
+        TextView hook2 = createBadge("OkHttp", "#4CAF50");
+        TextView hook3 = createBadge("日志", "#FF9800");
         
-        TextView hookContent = new TextView(this);
-        hookContent.setTextSize(13);
-        hookContent.setTextColor(Color.parseColor("#49454F"));
+        hookRow.addView(hook1);
+        hookRow.addView(hook2);
+        hookRow.addView(hook3);
+        rootLayout.addView(hookRow);
         
-        StringBuilder hookSb = new StringBuilder();
-        hookSb.append("✓ PopupWindow Hook - 菜单注入\n");
-        hookSb.append("✓ OkHttp Hook - 网络拦截\n");
-        hookSb.append("✓ 消息改写 - chat 接口\n");
-        
-        hookContent.setText(hookSb.toString());
-        hookCard.addView(hookContent);
-        
-        rootLayout.addView(hookCard);
-        
-        // === 日志区域 ===
+        // 日志区域标题
         TextView logTitle = new TextView(this);
         logTitle.setText("运行日志");
-        logTitle.setTextSize(15);
+        logTitle.setTextSize(16);
         logTitle.getPaint().setFakeBoldText(true);
         logTitle.setTextColor(Color.parseColor("#1D1B20"));
-        LinearLayout.LayoutParams logTitleParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        logTitleParams.setMargins(32, 16, 32, 8);
-        logTitle.setLayoutParams(logTitleParams);
+        logTitle.setPadding(32, 16, 32, 12);
         rootLayout.addView(logTitle);
         
         // 日志内容卡片
-        LinearLayout logCard = new LinearLayout(this);
-        logCard.setOrientation(LinearLayout.VERTICAL);
-        logCard.setPadding(24, 24, 24, 24);
-        logCard.setBackgroundColor(Color.parseColor("#1E1E1E"));
-        LinearLayout.LayoutParams logCardParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        logCardParams.setMargins(32, 0, 32, 32);
-        logCard.setLayoutParams(logCardParams);
-        
         TextView logView = new TextView(this);
-        logView.setTextSize(12);
-        logView.setTextColor(Color.parseColor("#A5D6A7"));
-        logView.setTypeface(Typeface.MONOSPACE);
+        logView.setTextSize(13);
+        logView.setTextColor(Color.parseColor("#333333"));
+        logView.setPadding(28, 24, 28, 24);
+        logView.setBackgroundColor(Color.WHITE);
         logView.setMovementMethod(new ScrollingMovementMethod());
         
         // 读取日志文件
@@ -122,27 +83,60 @@ public class MainActivity extends Activity {
             if (logFile.exists()) {
                 BufferedReader reader = new BufferedReader(new FileReader(logFile));
                 String line;
-                int count = 0;
-                while ((line = reader.readLine()) != null && count < 200) {
+                while ((line = reader.readLine()) != null) {
                     logSb.append(line).append("\n");
-                    count++;
                 }
                 reader.close();
             } else {
-                logSb.append("// 暂无日志\n");
-                logSb.append("// 打开魔姬助手触发操作后刷新查看\n");
+                logSb.append("暂无日志\n\n");
+                logSb.append("请打开魔姬助手应用，\n");
+                logSb.append("触发操作后日志会自动显示在这里。\n\n");
+                logSb.append("=== Hook 点列表 ===\n");
+                logSb.append("✓ PopupWindow Hook\n");
+                logSb.append("  - 注入三点菜单入口\n\n");
+                logSb.append("✓ OkHttp Hook\n");
+                logSb.append("  - 拦截聊天接口\n");
+                logSb.append("  - 拦截 OSS 上传接口\n");
             }
         } catch (Exception e) {
-            logSb.append("// 读取日志失败: " + e.getMessage());
+            logSb.append("读取日志失败: ").append(e.getMessage());
         }
         
         logView.setText(logSb.toString());
-        logCard.addView(logView);
-        
-        rootLayout.addView(logCard);
         
         ScrollView scrollView = new ScrollView(this);
-        scrollView.addView(rootLayout);
-        setContentView(scrollView);
+        scrollView.addView(logView);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.MATCH_PARENT
+        );
+        params.setMargins(32, 0, 32, 32);
+        scrollView.setLayoutParams(params);
+        
+        rootLayout.addView(scrollView);
+        setContentView(rootLayout);
+    }
+    
+    private TextView createBadge(String text, String color) {
+        TextView badge = new TextView(this);
+        badge.setText(text);
+        badge.setTextSize(12);
+        badge.setTextColor(Color.WHITE);
+        badge.setPadding(20, 10, 20, 10);
+        
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setColor(Color.parseColor(color));
+        drawable.setCornerRadius(20);
+        badge.setBackground(drawable);
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, 0, 12, 0);
+        badge.setLayoutParams(params);
+        
+        return badge;
     }
 }
