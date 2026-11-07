@@ -1,7 +1,6 @@
 package de.robv.android.xposed.callbacks;
 import android.content.pm.ApplicationInfo;
-import de.robv.android.xposed.XC_MethodHook;
-public abstract class XC_LoadPackage extends XC_MethodHook {
+public abstract class XC_LoadPackage {
     public static class LoadPackageParam {
         public String packageName;
         public String processName;
