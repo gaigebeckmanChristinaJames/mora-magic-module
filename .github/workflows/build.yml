@@ -47,22 +47,35 @@ jobs:
       - name: Compile FileUploadHelper to classes2.dex
         run: |
           mkdir -p build/obj2 build/dex_out
+          echo "=== Compiling FileUploadHelper ==="
+          echo "File exists: $(ls -la app/src/main/java/com/mora/magicmodule/FileUploadHelper.java)"
+          
           javac -source 8 -target 8 \
-            -cp build/stub_classes:$ANDROID_HOME/platforms/android-34/android.jar \
+            -cp $ANDROID_HOME/platforms/android-34/android.jar \
             -d build/obj2 \
-            app/src/main/java/com/mora/magicmodule/FileUploadHelper.java || echo "FileUploadHelper compilation failed"
+            app/src/main/java/com/mora/magicmodule/FileUploadHelper.java
+          
+          echo "=== javac exit code: $? ==="
+          echo "=== obj2 contents ==="
+          find build/obj2 -name "*.class" || echo "No class files"
           
           if [ -f build/obj2/com/mora/magicmodule/FileUploadHelper.class ]; then
+            echo "=== Running d8 ==="
             $ANDROID_HOME/build-tools/34.0.0/d8 \
               --release \
               --min-api 26 \
               --lib $ANDROID_HOME/platforms/android-34/android.jar \
               --output build/dex_out \
               $(find build/obj2 -name "*.class")
+            
+            echo "=== d8 exit code: $? ==="
+            echo "=== dex_out contents ==="
+            ls -la build/dex_out/
+            
             cp build/dex_out/classes.dex build/classes2.dex
             echo "Created classes2.dex: $(wc -c < build/classes2.dex) bytes"
           else
-            echo "FileUploadHelper not compiled, no classes2.dex"
+            echo "ERROR: FileUploadHelper.class not found"
           fi
 
       - name: Build APK
@@ -76,8 +89,8 @@ jobs:
             --auto-add-overlay \
             --min-sdk-version 26 \
             --target-sdk-version 34 \
-            --version-code 124 \
-            --version-name "12.3.1"
+            --version-code 125 \
+            --version-name "12.3.2"
 
           # Add dex files
           cd build
@@ -89,6 +102,8 @@ jobs:
           if [ -f classes2.dex ]; then
             zip -q -j unsigned.apk classes2.dex
             echo "Added classes2.dex: $(wc -c < classes2.dex) bytes"
+          else
+            echo "WARNING: classes2.dex not found"
           fi
 
           # Add assets
@@ -112,11 +127,11 @@ jobs:
             --ks build/mora.jks \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out build/mora-magic-v12.3.1.apk \
+            --out build/mora-magic-v12.3.2.apk \
             build/aligned.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: mora-magic-v12.3.1
-          path: build/mora-magic-v12.3.1.apk
+          name: mora-magic-v12.3.2
+          path: build/mora-magic-v12.3.2.apk
