@@ -72,7 +72,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
         
         // 写日志到魔姬助手内部目录
         try {
-            android.content.Context ctx = android.app.AndroidAppHelper.currentApplication();
+            android.content.Context ctx = de.robv.android.xposed.AndroidAppHelper.currentApplication();
             if (ctx != null) {
                 java.io.File dir = new java.io.File(ctx.getFilesDir(), "mora_logs");
                 dir.mkdirs();
@@ -111,7 +111,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
         
         // 弹出 Toast 提示
         try {
-            android.content.Context ctx = android.app.AndroidAppHelper.currentApplication();
+            android.content.Context ctx = de.robv.android.xposed.AndroidAppHelper.currentApplication();
             if (ctx != null) {
                 android.widget.Toast.makeText(ctx, "魔姬增强模块已注入成功", android.widget.Toast.LENGTH_LONG).show();
             }
