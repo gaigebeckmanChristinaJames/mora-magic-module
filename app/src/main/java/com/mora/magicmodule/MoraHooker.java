@@ -473,10 +473,47 @@ public class MoraHooker implements IXposedHookLoadPackage {
     /** 上传文件并发送 */
     private void uploadFileAndSend(Context ctx, java.io.File file) {
         addLog("开始上传文件: " + file.getName());
-        // TODO: 实现 OSS 上传流程
-        // 1. POST /aigcapi/oss/file/presignedurl 获取上传地址
-        // 2. PUT 上传文件到 OSS
-        // 3. 把 OSS URL 拼在消息里发送
+        
+        new Thread(() -> {
+            try {
+                // 1. 获取 presigned URL
+                addLog("正在获取上传地址...");
+                URL presignedUrl = new URL("https://aigc.ztems.com/aigcapi/oss/file/presignedurl");
+                HttpURLConnection conn = (HttpURLConnection) presignedUrl.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Authorization", lastApiKey);
+                conn.setDoOutput(true);
+                
+                // TODO: 这里需要补全 presignedurl 的请求参数
+                String requestBody = "{\"fileName\":\"" + file.getName() + "\"}";
+                conn.getOutputStream().write(requestBody.getBytes("UTF-8"));
+                
+                int responseCode = conn.getResponseCode();
+                addLog("presignedurl 响应码: " + responseCode);
+                
+                if (responseCode == 200) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        response.append(line);
+                    }
+                    reader.close();
+                    addLog("presignedurl 响应: " + response.toString());
+                    
+                    // TODO: 解析响应，获取上传 URL 和 OSS URL
+                    // TODO: PUT 上传文件到 OSS
+                    // TODO: 把 OSS URL 拼在消息里发送
+                } else {
+                    addLog("获取上传地址失败: " + responseCode);
+                }
+                conn.disconnect();
+            } catch (Exception e) {
+                addLog("上传文件出错: " + e.getMessage());
+            }
+        }).start();
+        
         Toast.makeText(ctx, "上传功能开发中，日志已记录", Toast.LENGTH_LONG).show();
     }
 
