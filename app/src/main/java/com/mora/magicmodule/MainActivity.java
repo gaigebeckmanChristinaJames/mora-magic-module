@@ -26,8 +26,7 @@ public class MainActivity extends Activity {
         StringBuilder logSb = new StringBuilder();
         boolean hookRunning = false;
         try {
-            File logFile = new File(android.os.Environment.getExternalStorageDirectory(), 
-                "Android/data/com.mora.magicmodule/files/logs.txt");
+            File logFile = new File("/data/local/tmp/mora_logs.txt");
             if (logFile.exists() && logFile.length() > 0) {
                 BufferedReader reader = new BufferedReader(new FileReader(logFile));
                 String line;

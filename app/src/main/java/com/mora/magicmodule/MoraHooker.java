@@ -69,6 +69,16 @@ public class MoraHooker implements IXposedHookLoadPackage {
         logs.add(line);
         if (logs.size() > MAX_LOGS) logs.remove(0);
         Log.i(TAG, msg);
+        
+        // 写日志到 /data/local/tmp/ 目录，供主界面读取
+        try {
+            java.io.File logFile = new java.io.File("/data/local/tmp/mora_logs.txt");
+            java.io.FileWriter fw = new java.io.FileWriter(logFile, true);
+            fw.write(line + "\n");
+            fw.close();
+        } catch (Exception e) {
+            // 忽略写文件错误
+        }
     }
 
     @Override
