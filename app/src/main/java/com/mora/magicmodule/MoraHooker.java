@@ -103,7 +103,16 @@ public class MoraHooker implements IXposedHookLoadPackage {
             Context ctx = content.getContext();
             if (ctx == null) return;
 
-            TextView target = findText(content, "清除历史记录");
+            // 用资源 id 定位"清除历史记录"，比文本匹配更可靠
+            int clearId = ctx.getResources().getIdentifier("clear_history", "id", "com.zte.aiassistant");
+            TextView target = null;
+            if (clearId != 0) {
+                target = content.findViewById(clearId);
+            }
+            // 兜底：如果资源 id 找不到，再用文本匹配
+            if (target == null) {
+                target = findText(content, "清除历史记录");
+            }
             if (target == null) return;
 
             ViewGroup parent = (ViewGroup) target.getParent();
