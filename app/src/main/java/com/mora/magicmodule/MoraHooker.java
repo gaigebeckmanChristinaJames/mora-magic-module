@@ -470,86 +470,18 @@ public class MoraHooker implements IXposedHookLoadPackage {
         new AlertDialog.Builder(ctx).setView(layout).setPositiveButton("返回", null).show();
     }
     
-    /** 上传文件并发送 */
+    /** 上传文件并发送（通过反射调用 classes2.dex 里的 FileUploadHelper） */
     private void uploadFileAndSend(Context ctx, java.io.File file) {
         addLog("开始上传文件: " + file.getName());
-        
-        new Thread(() -> {
-            try {
-                // 1. 获取 presigned URL
-                addLog("正在获取上传地址...");
-                URL presignedUrl = new URL("https://aigc.ztems.com/aigcapi/oss/file/presignedurl");
-                HttpURLConnection conn = (HttpURLConnection) presignedUrl.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("Authorization", lastApiKey);
-                conn.setDoOutput(true);
-                
-                // 根据 OSS 路径格式 /tempfiles/1249941/文件名 推断请求参数
-                String requestBody = "{\"fileName\":\"" + file.getName() + "\",\"filePath\":\"tempfiles/\"}";
-                conn.getOutputStream().write(requestBody.getBytes("UTF-8"));
-                
-                int responseCode = conn.getResponseCode();
-                addLog("presignedurl 响应码: " + responseCode);
-                
-                if (responseCode == 200) {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder response = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        response.append(line);
-                    }
-                    reader.close();
-                    String respStr = response.toString();
-                    addLog("presignedurl 响应: " + respStr);
-                    
-                    // 解析响应，获取上传 URL 和 OSS URL
-                    org.json.JSONObject json = new org.json.JSONObject(respStr);
-                    String uploadUrl = json.optString("uploadUrl", "");
-                    String ossUrl = json.optString("ossUrl", "");
-                    addLog("上传 URL: " + uploadUrl);
-                    addLog("OSS URL: " + ossUrl);
-                    
-                    if (!uploadUrl.isEmpty()) {
-                        // 2. PUT 上传文件到 OSS
-                        addLog("正在上传文件到 OSS...");
-                        URL putUrl = new URL(uploadUrl);
-                        HttpURLConnection putConn = (HttpURLConnection) putUrl.openConnection();
-                        putConn.setRequestMethod("PUT");
-                        putConn.setDoOutput(true);
-                        
-                        java.io.FileInputStream fis = new java.io.FileInputStream(file);
-                        byte[] buffer = new byte[4096];
-                        int len;
-                        java.io.OutputStream os = putConn.getOutputStream();
-                        while ((len = fis.read(buffer)) != -1) {
-                            os.write(buffer, 0, len);
-                        }
-                        fis.close();
-                        os.close();
-                        
-                        int putCode = putConn.getResponseCode();
-                        addLog("OSS 上传响应码: " + putCode);
-                        putConn.disconnect();
-                        
-                        if (putCode == 200) {
-                            addLog("文件上传成功！OSS URL: " + ossUrl);
-                            // TODO: 把 OSS URL 拼在消息里发送
-                        } else {
-                            addLog("OSS 上传失败: " + putCode);
-                        }
-                    }
-                } else {
-                    addLog("获取上传地址失败: " + responseCode);
-                }
-                conn.disconnect();
-            } catch (Exception e) {
-                addLog("上传文件出错: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }).start();
-        
-        Toast.makeText(ctx, "上传功能开发中，日志已记录", Toast.LENGTH_LONG).show();
+        try {
+            // 反射调用 FileUploadHelper.upload(ctx, file, lastApiKey)
+            Class<?> helperClass = Class.forName("com.mora.magicmodule.FileUploadHelper");
+            java.lang.reflect.Method method = helperClass.getMethod("upload", Context.class, java.io.File.class, String.class);
+            method.invoke(null, ctx, file, lastApiKey);
+        } catch (Exception e) {
+            addLog("反射调用 FileUploadHelper 失败: " + e.getMessage());
+            Toast.makeText(ctx, "文件上传功能未加载，请检查 classes2.dex", Toast.LENGTH_LONG).show();
+        }
     }
 
     /** 第一层: 设置（日志、状态） */
