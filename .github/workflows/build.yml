@@ -32,134 +32,57 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Download Xposed API
+      - name: Compile resources
         run: |
-          mkdir -p xposed
-          
-          # 多地址重试
-          urls=(
-            "https://repo1.maven.org/maven2/de/robv/android/xposed/api/82/api-82.jar"
-            "https://oss.sonatype.org/content/repositories/releases/de/robv/android/xposed/api/82/api-82.jar"
-            "https://jitpack.io/com/robv/android/xposed/api/82/api-82.jar"
-            "https://github.com/rovo89/XposedBridge/raw/art/app/libs/api-82.jar"
-          )
-          
-          for url in "${urls[@]}"; do
-            echo "Trying: $url"
-            if wget -q --timeout=30 -O xposed/api-82.jar "$url" && [ -s xposed/api-82.jar ]; then
-              size=$(stat -c%s xposed/api-82.jar)
-              echo "Success: $size bytes from $url"
-              break
-            fi
-          done
-          
-          ls -la xposed/
-          
-          # 如果还是失败，创建 stub jar
-          if [ ! -s xposed/api-82.jar ]; then
-            echo "All downloads failed, creating stub"
-            # 创建简单的 stub 类
-            mkdir -p stub/de/robv/android/xposed/callbacks
-            cat > stub/de/robv/android/xposed/IXposedHookLoadPackage.java << 'EOF'
-package de.robv.android.xposed;
-import de.robv.android.xposed.callbacks.XC_LoadPackage;
-public interface IXposedHookLoadPackage {
-    void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable;
-}
-EOF
-            cat > stub/de/robv/android/xposed/XC_MethodHook.java << 'EOF'
-package de.robv.android.xposed;
-public class XC_MethodHook {
-    public static class Unhook { public Object getHookedMethod() { return null; } }
-    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {}
-    protected void afterHookedMethod(MethodHookParam param) throws Throwable {}
-    public static class MethodHookParam {
-        public Object[] args;
-        public Object thisObject;
-        public Object getResult() { return null; }
-        public void setResult(Object r) {}
-    }
-}
-EOF
-            cat > stub/de/robv/android/xposed/XposedHelpers.java << 'EOF'
-package de.robv.android.xposed;
-import java.lang.reflect.Method;
-public class XposedHelpers {
-    public static Object findAndHookMethod(Class<?> cls, String methodName, Object... parameterTypesAndCallback) { return null; }
-    public static Object findAndHookMethod(String className, ClassLoader cl, String methodName, Object... parameterTypesAndCallback) { return null; }
-    public static Class<?> findClass(String className, ClassLoader cl) { return null; }
-}
-EOF
-            cat > stub/de/robv/android/xposed/callbacks/XC_LoadPackage.java << 'EOF'
-package de.robv.android.xposed.callbacks;
-public class XC_LoadPackage {
-    public static class LoadPackageParam {
-        public String packageName;
-        public ClassLoader classLoader;
-    }
-}
-EOF
-            javac -cp stub -d stub_classes $(find stub -name "*.java")
-            jar cf xposed/api-82.jar -C stub_classes .
-          fi
-
-      - name: Compile Java sources
-        run: |
-          mkdir -p obj
-          javac \
-            -bootclasspath $ANDROID_HOME/platforms/android-34/android.jar \
-            -cp xposed/api-82.jar \
-            -d obj \
-            app/src/main/java/com/mora/magicmodule/MoraHooker.java
-
-      - name: Convert to DEX
-        run: |
-          mkdir -p build
-          $ANDROID_HOME/build-tools/34.0.0/d8 \
-            --release \
-            --min-api 26 \
-            --lib $ANDROID_HOME/platforms/android-34/android.jar \
-            --output build \
-            $(find obj -name "*.class")
+          mkdir -p build/res_compiled
+          $ANDROID_HOME/build-tools/34.0.0/aapt2 compile app/src/main/res/values/arrays.xml -o build/res_compiled/
 
       - name: Build APK
         run: |
           mkdir -p build
 
+          # Link with resources
           $ANDROID_HOME/build-tools/34.0.0/aapt2 link \
             -o build/unsigned.apk \
             -I $ANDROID_HOME/platforms/android-34/android.jar \
             --manifest app/src/main/AndroidManifest.xml \
+            -R build/res_compiled/*.flat \
+            --auto-add-overlay \
             --min-sdk-version 26 \
             --target-sdk-version 34 \
-            --version-code 80 \
-            --version-name "8.0.0"
+            --version-code 90 \
+            --version-name "9.0.0"
 
+          # Add classes.dex
           cd build
-          zip -q unsigned.apk classes.dex
+          zip -q unsigned.apk ../app/src/main/dex/classes.dex
           cd ..
 
+          # Add xposed_init
           cd app/src/main
-          zip -q ../../../build/unsigned.apk assets/xposed_init
-          cd ../../..
+          zip -q ../../build/unsigned.apk assets/xposed_init
+          cd ../..
 
+          # Zipalign
           $ANDROID_HOME/build-tools/34.0.0/zipalign -f 4 build/unsigned.apk build/aligned.apk
 
+          # Generate keystore
           keytool -genkey -v -keystore build/mora.jks \
             -alias mora -keyalg RSA -keysize 2048 \
             -validity 10000 \
             -storepass android -keypass android \
             -dname "CN=Mora, OU=Dev, O=Mora, L=Beijing, ST=Beijing, C=CN"
 
+          # Sign
           $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
             --ks build/mora.jks \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out build/魔姬增强模块_v8.0.apk \
+            --out build/魔姬增强模块_v9.0.apk \
             build/aligned.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 魔姬增强模块_v8.0
-          path: build/魔姬增强模块_v8.0.apk
+          name: 魔姬增强模块_v9.0
+          path: build/魔姬增强模块_v9.0.apk
