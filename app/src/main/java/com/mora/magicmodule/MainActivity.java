@@ -43,7 +43,7 @@ public class MainActivity extends Activity {
             sb.append(log).append("\n");
         }
         
-        status.setText(sb.toString);
+        status.setText(sb.toString());
         status.setMovementMethod(new ScrollingMovementMethod());
         
         layout.addView(status);
