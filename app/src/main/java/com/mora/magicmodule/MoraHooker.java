@@ -74,9 +74,14 @@ public class MoraHooker implements IXposedHookLoadPackage {
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
         if (!TARGET_PACKAGE.equals(lpparam.packageName)) return;
-        addLog("=== v10.3 模块加载 ===");
+        addLog("=== v10.5 模块加载 ===");
+        addLog("目标包名: " + lpparam.packageName);
+        addLog("开始安装 Hook...");
         hookPopupWindow();
+        addLog("✓ PopupWindow Hook 已安装");
         hookOkHttp(lpparam);
+        addLog("✓ OkHttp Hook 已安装");
+        addLog("所有 Hook 安装完成");
     }
 
     private void hookPopupWindow() {
@@ -98,22 +103,35 @@ public class MoraHooker implements IXposedHookLoadPackage {
 
     private void injectMenu(PopupWindow popup) {
         try {
+            addLog("检测到 PopupWindow 弹出");
             View content = popup.getContentView();
-            if (content == null) return;
+            if (content == null) {
+                addLog("  contentView 为 null，跳过");
+                return;
+            }
             Context ctx = content.getContext();
-            if (ctx == null) return;
+            if (ctx == null) {
+                addLog("  context 为 null，跳过");
+                return;
+            }
 
             // 用资源 id 定位"清除历史记录"，比文本匹配更可靠
             int clearId = ctx.getResources().getIdentifier("clear_history", "id", "com.zte.aiassistant");
+            addLog("  clear_history 资源 id: " + clearId);
             TextView target = null;
             if (clearId != 0) {
                 target = content.findViewById(clearId);
+                addLog("  通过资源 id 找到: " + (target != null));
             }
             // 兜底：如果资源 id 找不到，再用文本匹配
             if (target == null) {
                 target = findText(content, "清除历史记录");
+                addLog("  通过文本匹配找到: " + (target != null));
             }
-            if (target == null) return;
+            if (target == null) {
+                addLog("  未找到清除历史记录菜单项，跳过");
+                return;
+            }
 
             ViewGroup parent = (ViewGroup) target.getParent();
             if (parent == null) return;

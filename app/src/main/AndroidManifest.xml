@@ -13,7 +13,7 @@
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="魔姬助手增强：菜单注入、话术自定义、解锁全部皮肤、关闭播报限制" />
+            android:value="魔姬助手增强：菜单注入、消息改写、调试日志" />
         <meta-data
             android:name="xposedminversion"
             android:value="93" />
