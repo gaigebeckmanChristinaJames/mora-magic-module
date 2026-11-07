@@ -44,38 +44,38 @@ jobs:
           mkdir -p build/res_compiled
           $ANDROID_HOME/build-tools/34.0.0/aapt2 compile app/src/main/res/values/arrays.xml -o build/res_compiled/
 
-      - name: Compile FileUploadHelper to classes2.dex
+      - name: Compile MoraHooker to classes.dex
         run: |
-          mkdir -p build/obj2 build/dex_out
-          echo "=== Compiling FileUploadHelper ==="
-          echo "File exists: $(ls -la app/src/main/java/com/mora/magicmodule/FileUploadHelper.java)"
+          mkdir -p build/obj build/dex_out
+          echo "=== Compiling MoraHooker ==="
           
           javac -source 8 -target 8 \
-            -cp $ANDROID_HOME/platforms/android-34/android.jar \
-            -d build/obj2 \
-            app/src/main/java/com/mora/magicmodule/FileUploadHelper.java
+            -cp build/stub_classes:$ANDROID_HOME/platforms/android-34/android.jar \
+            -d build/obj \
+            app/src/main/java/com/mora/magicmodule/MoraHooker.java
           
           echo "=== javac exit code: $? ==="
-          echo "=== obj2 contents ==="
-          find build/obj2 -name "*.class" || echo "No class files"
+          echo "=== obj contents ==="
+          find build/obj -name "*.class" | head -20
           
-          if [ -f build/obj2/com/mora/magicmodule/FileUploadHelper.class ]; then
+          if [ -f build/obj/com/mora/magicmodule/MoraHooker.class ]; then
             echo "=== Running d8 ==="
             $ANDROID_HOME/build-tools/34.0.0/d8 \
               --release \
               --min-api 26 \
               --lib $ANDROID_HOME/platforms/android-34/android.jar \
               --output build/dex_out \
-              $(find build/obj2 -name "*.class")
+              $(find build/obj -name "*.class")
             
             echo "=== d8 exit code: $? ==="
             echo "=== dex_out contents ==="
             ls -la build/dex_out/
             
-            cp build/dex_out/classes.dex build/classes2.dex
-            echo "Created classes2.dex: $(wc -c < build/classes2.dex) bytes"
+            cp build/dex_out/classes.dex build/classes.dex
+            echo "Created classes.dex: $(wc -c < build/classes.dex) bytes"
           else
-            echo "ERROR: FileUploadHelper.class not found"
+            echo "ERROR: MoraHooker.class not found"
+            exit 1
           fi
 
       - name: Build APK
@@ -89,22 +89,13 @@ jobs:
             --auto-add-overlay \
             --min-sdk-version 26 \
             --target-sdk-version 34 \
-            --version-code 125 \
-            --version-name "12.3.2"
+            --version-code 127 \
+            --version-name "12.3.7"
 
           # Add dex files
           cd build
-          # 原来的预编译 classes.dex
-          cp ../app/src/main/dex/classes.dex .
           zip -q -j unsigned.apk classes.dex
           echo "Added classes.dex: $(wc -c < classes.dex) bytes"
-          # 新的 classes2.dex（FileUploadHelper）
-          if [ -f classes2.dex ]; then
-            zip -q -j unsigned.apk classes2.dex
-            echo "Added classes2.dex: $(wc -c < classes2.dex) bytes"
-          else
-            echo "WARNING: classes2.dex not found"
-          fi
 
           # Add assets
           mkdir -p assets
@@ -127,11 +118,11 @@ jobs:
             --ks build/mora.jks \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out build/mora-magic-v12.3.2.apk \
+            --out build/mora-magic-v12.3.7.apk \
             build/aligned.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: mora-magic-v12.3.2
-          path: build/mora-magic-v12.3.2.apk
+          name: mora-magic-v12.3.7
+          path: build/mora-magic-v12.3.7.apk
