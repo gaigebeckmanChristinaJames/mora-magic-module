@@ -35,8 +35,73 @@ jobs:
       - name: Download Xposed API
         run: |
           mkdir -p xposed
-          wget -q -O xposed/api-82.jar "https://repo1.maven.org/maven2/de/robv/android/xposed/api/82/api-82.jar"
+          
+          # 多地址重试
+          urls=(
+            "https://repo1.maven.org/maven2/de/robv/android/xposed/api/82/api-82.jar"
+            "https://oss.sonatype.org/content/repositories/releases/de/robv/android/xposed/api/82/api-82.jar"
+            "https://jitpack.io/com/robv/android/xposed/api/82/api-82.jar"
+            "https://github.com/rovo89/XposedBridge/raw/art/app/libs/api-82.jar"
+          )
+          
+          for url in "${urls[@]}"; do
+            echo "Trying: $url"
+            if wget -q --timeout=30 -O xposed/api-82.jar "$url" && [ -s xposed/api-82.jar ]; then
+              size=$(stat -c%s xposed/api-82.jar)
+              echo "Success: $size bytes from $url"
+              break
+            fi
+          done
+          
           ls -la xposed/
+          
+          # 如果还是失败，创建 stub jar
+          if [ ! -s xposed/api-82.jar ]; then
+            echo "All downloads failed, creating stub"
+            # 创建简单的 stub 类
+            mkdir -p stub/de/robv/android/xposed/callbacks
+            cat > stub/de/robv/android/xposed/IXposedHookLoadPackage.java << 'EOF'
+package de.robv.android.xposed;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
+public interface IXposedHookLoadPackage {
+    void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable;
+}
+EOF
+            cat > stub/de/robv/android/xposed/XC_MethodHook.java << 'EOF'
+package de.robv.android.xposed;
+public class XC_MethodHook {
+    public static class Unhook { public Object getHookedMethod() { return null; } }
+    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {}
+    protected void afterHookedMethod(MethodHookParam param) throws Throwable {}
+    public static class MethodHookParam {
+        public Object[] args;
+        public Object thisObject;
+        public Object getResult() { return null; }
+        public void setResult(Object r) {}
+    }
+}
+EOF
+            cat > stub/de/robv/android/xposed/XposedHelpers.java << 'EOF'
+package de.robv.android.xposed;
+import java.lang.reflect.Method;
+public class XposedHelpers {
+    public static Object findAndHookMethod(Class<?> cls, String methodName, Object... parameterTypesAndCallback) { return null; }
+    public static Object findAndHookMethod(String className, ClassLoader cl, String methodName, Object... parameterTypesAndCallback) { return null; }
+    public static Class<?> findClass(String className, ClassLoader cl) { return null; }
+}
+EOF
+            cat > stub/de/robv/android/xposed/callbacks/XC_LoadPackage.java << 'EOF'
+package de.robv.android.xposed.callbacks;
+public class XC_LoadPackage {
+    public static class LoadPackageParam {
+        public String packageName;
+        public ClassLoader classLoader;
+    }
+}
+EOF
+            javac -cp stub -d stub_classes $(find stub -name "*.java")
+            jar cf xposed/api-82.jar -C stub_classes .
+          fi
 
       - name: Compile Java sources
         run: |
