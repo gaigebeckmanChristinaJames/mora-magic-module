@@ -30,7 +30,7 @@ public class FileUploadHelper {
                 conn.setDoOutput(true);
                 
                 // 根据 OSS 路径格式 /tempfiles/1249941/文件名 推断请求参数
-                String requestBody = "{\\"fileName\\":\\"" + file.getName() + "\\",\\"filePath\\":\\"tempfiles/\\"}";
+                String requestBody = "{\"fileName\":\"" + file.getName() + "\",\"filePath\":\"tempfiles/\"}";
                 conn.getOutputStream().write(requestBody.getBytes("UTF-8"));
                 
                 int responseCode = conn.getResponseCode();
