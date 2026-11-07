@@ -42,10 +42,14 @@ public class MoraHooker2 implements IXposedHookLoadPackage {
 
         addLog("MoraHooker2: 初始化完成");
         
-        // 测试 Toast - 确认 Hook 有没有运行
-        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-            android.widget.Toast.makeText(android.app.ActivityThread.currentApplication(), "MoraHooker2 已加载", android.widget.Toast.LENGTH_LONG).show();
-        });
+        // 写日志到 /data/local/tmp/ 确认 Hook 有没有运行
+        try {
+            java.io.File logFile = new java.io.File("/data/local/tmp/mora_hook2.log");
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(logFile, true);
+            String time = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
+            fos.write((time + " MoraHooker2: 已加载\n").getBytes());
+            fos.close();
+        } catch (Exception e) {}
 
         // Hook PopupWindow 注入菜单
         try {
