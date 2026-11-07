@@ -151,7 +151,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
                 return;
             }
 
-            // 用资源 id 定位"清除历史记录"，比文本匹配更可靠
+            // 用资源 id 定位"清除历史记录"
             int clearId = ctx.getResources().getIdentifier("clear_history", "id", "com.zte.aiassistant");
             addLog("  clear_history 资源 id: " + clearId);
             TextView target = null;
@@ -159,7 +159,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
                 target = content.findViewById(clearId);
                 addLog("  通过资源 id 找到: " + (target != null));
             }
-            // 兜底：如果资源 id 找不到，再用文本匹配
+            // 兜底：文本匹配
             if (target == null) {
                 target = findText(content, "清除历史记录");
                 addLog("  通过文本匹配找到: " + (target != null));
@@ -173,6 +173,18 @@ public class MoraHooker implements IXposedHookLoadPackage {
             if (parent == null) return;
             if (parent.findViewById(MENU_ITEM_ID) != null) return;
 
+            int targetIndex = parent.indexOfChild(target);
+            
+            // 1. 在"清除历史记录"上面加分隔线（和系统原生的分隔线一样）
+            View divider = new View(ctx);
+            divider.setId(MENU_ITEM_ID + 1);
+            divider.setBackgroundColor(0x1F000000); // 浅灰色分隔线
+            LinearLayout.LayoutParams dividerLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 1);
+            divider.setLayoutParams(dividerLp);
+            parent.addView(divider, targetIndex);
+            
+            // 2. 加"魔姬增强设置"菜单项（样式和清除历史记录一样）
             TextView item = new TextView(ctx);
             item.setId(MENU_ITEM_ID);
             item.setText("魔姬增强设置");
@@ -180,12 +192,16 @@ public class MoraHooker implements IXposedHookLoadPackage {
             item.setPadding(target.getPaddingLeft(), target.getPaddingTop(),
                 target.getPaddingRight(), target.getPaddingBottom());
             item.setTextColor(target.getTextColors());
-
+            
             ViewGroup.LayoutParams lp = target.getLayoutParams();
-            if (lp != null) item.setLayoutParams(new ViewGroup.LayoutParams(lp.width, lp.height));
-
+            if (lp != null) {
+                LinearLayout.LayoutParams itemLp = new LinearLayout.LayoutParams(lp.width, lp.height);
+                item.setLayoutParams(itemLp);
+            }
+            
             item.setOnClickListener(v -> showMainDialog(ctx));
-            parent.addView(item, parent.indexOfChild(target) + 1);
+            parent.addView(item, targetIndex); // 插在分隔线上面
+            
             addLog("菜单注入成功");
         } catch (Exception e) {
             addLog("injectMenu: " + e.getMessage());
