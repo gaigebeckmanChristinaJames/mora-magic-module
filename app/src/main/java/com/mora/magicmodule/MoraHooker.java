@@ -470,15 +470,16 @@ public class MoraHooker implements IXposedHookLoadPackage {
         new AlertDialog.Builder(ctx).setView(layout).setPositiveButton("返回", null).show();
     }
     
-    /** 上传文件并发送（通过反射调用 classes2.dex 里的 FileUploadHelper） */
+    /** 上传文件并发送 */
     private void uploadFileAndSend(Context ctx, java.io.File file) {
-        addLog("开始上传文件: " + file.getName());
+        addLog("=== 开始上传文件: " + file.getName() + " ===");
         try {
             // 先把文件复制到魔姬助手的内部目录
             java.io.File internalDir = new java.io.File(ctx.getFilesDir(), "mora_uploads");
             internalDir.mkdirs();
             java.io.File copiedFile = new java.io.File(internalDir, file.getName());
             
+            addLog("复制文件到: " + copiedFile.getAbsolutePath());
             java.io.FileInputStream fis = new java.io.FileInputStream(file);
             java.io.FileOutputStream fos = new java.io.FileOutputStream(copiedFile);
             byte[] buffer = new byte[4096];
@@ -488,12 +489,78 @@ public class MoraHooker implements IXposedHookLoadPackage {
             }
             fis.close();
             fos.close();
-            addLog("文件已复制到内部目录: " + copiedFile.getAbsolutePath());
+            addLog("文件复制完成，大小: " + copiedFile.length() + " bytes");
             
-            // 反射调用 FileUploadHelper.upload(ctx, file, lastApiKey)
-            Class<?> helperClass = Class.forName("com.mora.magicmodule.FileUploadHelper");
-            java.lang.reflect.Method method = helperClass.getMethod("upload", Context.class, java.io.File.class, String.class);
-            method.invoke(null, ctx, copiedFile, lastApiKey);
+            // 1. 获取 presigned URL
+            addLog("正在获取 presigned URL...");
+            java.net.URL presignedUrl = new java.net.URL("https://aigc.ztems.com/aigcapi/oss/file/presignedurl");
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) presignedUrl.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Authorization", lastApiKey);
+            conn.setDoOutput(true);
+            
+            String requestBody = "{"fileName":"" + file.getName() + "","filePath":"tempfiles/"}";
+            addLog("请求体: " + requestBody);
+            conn.getOutputStream().write(requestBody.getBytes("UTF-8"));
+            
+            int responseCode = conn.getResponseCode();
+            addLog("presignedurl 响应码: " + responseCode);
+            
+            if (responseCode == 200) {
+                java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(conn.getInputStream()));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+                reader.close();
+                String respStr = response.toString();
+                addLog("presignedurl 响应: " + respStr);
+                
+                // 解析响应
+                org.json.JSONObject json = new org.json.JSONObject(respStr);
+                String uploadUrl = json.optString("uploadUrl", "");
+                String ossUrl = json.optString("ossUrl", "");
+                addLog("上传 URL: " + uploadUrl);
+                addLog("OSS URL: " + ossUrl);
+                
+                if (!uploadUrl.isEmpty()) {
+                    // 2. PUT 上传文件到 OSS
+                    addLog("正在上传文件到 OSS...");
+                    java.net.URL putUrl = new java.net.URL(uploadUrl);
+                    java.net.HttpURLConnection putConn = (java.net.HttpURLConnection) putUrl.openConnection();
+                    putConn.setRequestMethod("PUT");
+                    putConn.setDoOutput(true);
+                    
+                    java.io.FileInputStream putFis = new java.io.FileInputStream(copiedFile);
+                    byte[] putBuffer = new byte[4096];
+                    int putLen;
+                    java.io.OutputStream os = putConn.getOutputStream();
+                    while ((putLen = putFis.read(putBuffer)) != -1) {
+                        os.write(putBuffer, 0, putLen);
+                    }
+                    putFis.close();
+                    os.close();
+                    
+                    int putCode = putConn.getResponseCode();
+                    addLog("OSS 上传响应码: " + putCode);
+                    putConn.disconnect();
+                    
+                    if (putCode == 200) {
+                        addLog("=== 文件上传成功！OSS URL: " + ossUrl + " ===");
+                        Toast.makeText(ctx, "文件上传成功！", Toast.LENGTH_LONG).show();
+                        // TODO: 把 OSS URL 拼在消息里发送
+                    } else {
+                        addLog("OSS 上传失败: " + putCode);
+                        Toast.makeText(ctx, "OSS 上传失败: " + putCode, Toast.LENGTH_LONG).show();
+                    }
+                }
+            } else {
+                addLog("获取 presigned URL 失败: " + responseCode);
+                Toast.makeText(ctx, "获取上传地址失败", Toast.LENGTH_LONG).show();
+            }
+            conn.disconnect();
         } catch (Exception e) {
             addLog("上传文件出错: " + e.getMessage());
             e.printStackTrace();
