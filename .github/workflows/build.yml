@@ -32,37 +32,15 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Compile Xposed stub
-        run: |
-          mkdir -p build/stub_classes
-          javac -source 8 -target 8 -cp $ANDROID_HOME/platforms/android-34/android.jar \
-            -d build/stub_classes \
-            stub/de/robv/android/xposed/*.java stub/de/robv/android/xposed/callbacks/*.java
-
       - name: Compile resources
         run: |
           mkdir -p build/res_compiled
           $ANDROID_HOME/build-tools/34.0.0/aapt2 compile app/src/main/res/values/arrays.xml -o build/res_compiled/
 
-      - name: Compile Java sources
-        run: |
-          mkdir -p build/obj
-          javac -source 8 -target 8 \
-            -cp build/stub_classes:$ANDROID_HOME/platforms/android-34/android.jar \
-            -d build/obj \
-            app/src/main/java/com/mora/magicmodule/*.java
-
-      - name: Dex
-        run: |
-          $ANDROID_HOME/build-tools/34.0.0/d8 \
-            --release \
-            --min-api 26 \
-            --lib $ANDROID_HOME/platforms/android-34/android.jar \
-            --output build \
-            $(find build/obj -name "*.class")
-
       - name: Build APK
         run: |
+          mkdir -p build
+
           # Link with resources
           $ANDROID_HOME/build-tools/34.0.0/aapt2 link \
             -o build/unsigned.apk \
@@ -72,16 +50,17 @@ jobs:
             --auto-add-overlay \
             --min-sdk-version 26 \
             --target-sdk-version 34 \
-            --version-code 103 \
-            --version-name "10.3.0"
+            --version-code 104 \
+            --version-name "10.4.0"
+
+          # 准备文件
+          cp app/src/main/dex/classes.dex build/classes.dex
+          mkdir -p build/assets
+          cp app/src/main/assets/xposed_init build/assets/xposed_init
 
           # Add classes.dex
           cd build
           zip -q -j unsigned.apk classes.dex
-
-          # Add assets
-          mkdir -p assets
-          cp ../app/src/main/assets/xposed_init assets/xposed_init
           zip -q -r unsigned.apk assets/
           cd ..
 
@@ -100,11 +79,11 @@ jobs:
             --ks build/mora.jks \
             --ks-pass pass:android \
             --key-pass pass:android \
-            --out build/魔姬增强模块_v10.3.apk \
+            --out build/魔姬增强模块_v10.4.apk \
             build/aligned.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 魔姬增强模块_v10.3
-          path: build/魔姬增强模块_v10.3.apk
+          name: 魔姬增强模块_v10.4
+          path: build/魔姬增强模块_v10.4.apk
