@@ -42,7 +42,7 @@ public class MoraHooker implements IXposedHookLoadPackage {
     private static final String TARGET_PACKAGE = "com.zte.aiassistant";
     private static final int MENU_ITEM_ID = 9999;
 
-    private static final ArrayList<String> logs = new ArrayList<>();
+    public static final ArrayList<String> logs = new ArrayList<>();
     private static final int MAX_LOGS = 200;
 
     // 设置
