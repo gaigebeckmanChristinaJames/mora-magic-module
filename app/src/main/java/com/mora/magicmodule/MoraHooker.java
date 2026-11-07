@@ -90,34 +90,8 @@ public class MoraHooker implements IXposedHookLoadPackage {
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
         if (!TARGET_PACKAGE.equals(lpparam.packageName)) return;
         addLog("=== v12.0 模块加载 ===");
-        addLog("目标包名: " + lpparam.packageName);
-        addLog("开始安装 Hook...");
-        
-        try {
-            hookPopupWindow();
-            addLog("✓ PopupWindow Hook 安装成功");
-        } catch (Exception e) {
-            addLog("✗ PopupWindow Hook 失败: " + e.getMessage());
-        }
-        
-        try {
-            hookOkHttp(lpparam);
-            addLog("✓ OkHttp Hook 安装成功");
-        } catch (Exception e) {
-            addLog("✗ OkHttp Hook 失败: " + e.getMessage());
-        }
-        
-        addLog("Hook 安装流程结束");
-        
-        // 弹出 Toast 提示
-        try {
-            android.content.Context ctx = de.robv.android.xposed.AndroidAppHelper.currentApplication();
-            if (ctx != null) {
-                android.widget.Toast.makeText(ctx, "魔姬增强模块已注入成功", android.widget.Toast.LENGTH_LONG).show();
-            }
-        } catch (Exception e) {
-            // 忽略 Toast 错误
-        }
+        hookPopupWindow();
+        hookOkHttp(lpparam);
     }
 
     private void hookPopupWindow() {
